@@ -431,7 +431,7 @@ impl ScalableData {
         old_store: &ScalableData,
         version: u64,
     ) -> Result<WasmDetails, String> {
-        let bytes = include_bytes!("../../../../wasm/child_group_canister.wasm").to_vec();
+        let bytes = include_bytes!("../../../../wasm/demo_child_canister.wasm").to_vec();
 
         if bytes.is_empty() {
             return Err("No WASM found, skipping child WASM update".to_string());
@@ -461,7 +461,7 @@ impl ScalableData {
         }
 
         let details = WasmDetails {
-            label: "child_group_canister".to_string(),
+            label: "child_profile_canister".to_string(),
             bytes,
             wasm_type: CanisterType::ScalableChild,
             wasm_version: WasmVersion::Version(version),
@@ -586,7 +586,7 @@ impl ScalableData {
         let _max_bytes_per_chunk = max_bytes_per_chunk.unwrap_or(2_000_000);
         let result: Result<(Vec<u8>, (usize, usize)), _> = call::call(
             canister_principal,
-            "get_groups_for_parent",
+            "get_chunked_data",
             (filters, filter_type, chunk, _max_bytes_per_chunk),
         )
         .await;
