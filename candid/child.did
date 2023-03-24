@@ -1,0 +1,183 @@
+type ApiError = variant {
+  SerializeError : ErrorMessage;
+  DeserializeError : ErrorMessage;
+  NotFound : ErrorMessage;
+  ValidationError : vec ValidationResponse;
+  CanisterAtCapacity : ErrorMessage;
+  UpdateRequired : UpdateMessage;
+  Unauthorized : ErrorMessage;
+  Unexpected : ErrorMessage;
+  BadRequest : ErrorMessage;
+};
+type ApplicationRole = variant {
+  Blocked;
+  Guest;
+  Member;
+  Banned;
+  Admin;
+  Moderator;
+  Leader;
+  Owner;
+  Watcher;
+};
+type Asset = variant { Url : text; None; CanisterStorage : CanisterStorage };
+type CanisterStorage = variant { None; Manifest : Manifest; Chunk : ChunkData };
+type ChunkData = record {
+  chunk_id : nat64;
+  canister : principal;
+  index : nat64;
+};
+type CodeOfConductDetails = record {
+  approved_date : nat64;
+  approved_version : nat64;
+};
+type DateRange = record { end_date : nat64; start_date : nat64 };
+type ErrorMessage = record {
+  tag : text;
+  message : text;
+  inputs : opt vec text;
+  location : text;
+};
+type FilterType = variant { Or; And };
+type HttpHeader = record { value : text; name : text };
+type HttpRequest = record {
+  url : text;
+  method : text;
+  body : vec nat8;
+  headers : vec record { text; text };
+};
+type HttpResponse = record {
+  status : nat;
+  body : vec nat8;
+  headers : vec HttpHeader;
+};
+type Manifest = record { entries : vec ChunkData };
+type Metadata = record {
+  updated_at : nat64;
+  name : text;
+  max_entries : nat64;
+  current_entry_id : opt nat64;
+  created_at : nat64;
+  used_data : nat64;
+  cycles : nat64;
+  is_available : bool;
+  identifier : nat64;
+  entries_count : nat64;
+  parent : principal;
+};
+type PostProfile = record {
+  username : text;
+  display_name : text;
+  extra : text;
+  privacy : ProfilePrivacy;
+  first_name : text;
+  last_name : text;
+};
+type PostWallet = record { "principal" : principal; provider : text };
+type ProfileFilter = variant {
+  Interest : nat32;
+  Email : text;
+  Skill : nat32;
+  DisplayName : text;
+  UpdatedOn : DateRange;
+  City : text;
+  FirstName : text;
+  LastName : text;
+  Cause : nat32;
+  StateOrProvince : text;
+  Country : text;
+  CreatedOn : DateRange;
+  Username : text;
+};
+type ProfilePrivacy = variant { Private; Public };
+type ProfileResponse = record {
+  updated_on : nat64;
+  profile_image : Asset;
+  "principal" : principal;
+  banner_image : Asset;
+  about : text;
+  country : text;
+  username : text;
+  interests : vec nat32;
+  city : text;
+  created_on : nat64;
+  email : text;
+  website : text;
+  display_name : text;
+  extra : text;
+  privacy : ProfilePrivacy;
+  wallets : vec WalletResponse;
+  state_or_province : text;
+  first_name : text;
+  last_name : text;
+  member_identifier : principal;
+  causes : vec nat32;
+  code_of_conduct : CodeOfConductDetails;
+  date_of_birth : nat64;
+  identifier : principal;
+  skills : vec nat32;
+  application_role : ApplicationRole;
+};
+type RelationType = variant { Blocked; Friend };
+type Result = variant { Ok; Err : ApiError };
+type Result_1 = variant { Ok : ProfileResponse; Err : ApiError };
+type Result_2 = variant { Ok : bool; Err : ApiError };
+type Result_3 = variant { Ok : ApplicationRole; Err : ApiError };
+type Result_4 = variant { Ok : Metadata; Err : ApiError };
+type Result_5 = variant { Ok; Err };
+type UpdateMessage = record { canister_principal : principal; message : text };
+type UpdateProfile = record {
+  profile_image : Asset;
+  banner_image : Asset;
+  about : text;
+  country : text;
+  interests : vec nat32;
+  city : text;
+  email : opt text;
+  website : text;
+  display_name : text;
+  extra : text;
+  privacy : ProfilePrivacy;
+  state_or_province : text;
+  first_name : text;
+  last_name : text;
+  causes : vec nat32;
+  date_of_birth : nat64;
+  skills : vec nat32;
+};
+type ValidationResponse = record { field : text; message : text };
+type WalletResponse = record {
+  "principal" : principal;
+  provider : text;
+  is_primary : bool;
+};
+service : (principal, principal, text, nat64) -> {
+  accept_cycles : () -> (nat64);
+  add_entry_by_parent : (opt principal, vec nat8) -> (Result);
+  add_profile : (PostProfile, principal) -> (Result_1);
+  add_relation : (principal, RelationType) -> (Result_1);
+  add_starred : (principal) -> (Result_1);
+  add_wallet : (PostWallet) -> (Result_1);
+  approve_code_of_conduct : (nat64) -> (Result_2);
+  edit_profile : (UpdateProfile) -> (Result_1);
+  get_application_role : () -> (Result_3) query;
+  get_chunked_data : (vec ProfileFilter, FilterType, nat64, nat64) -> (
+      vec nat8,
+      record { nat64; nat64 },
+    ) query;
+  get_metadata : () -> (Result_4) query;
+  get_profile_by_identifier : (principal) -> (Result_1);
+  get_profile_by_user_principal : (principal) -> (Result_1);
+  get_profiles_by_identifier : (vec principal) -> (vec ProfileResponse);
+  get_profiles_by_user_principal : (vec principal) -> (vec ProfileResponse);
+  get_relations : (RelationType) -> (vec principal) query;
+  get_starred_events : () -> (vec principal) query;
+  get_starred_groups : () -> (vec principal) query;
+  get_starred_tasks : () -> (vec principal) query;
+  http_request : (HttpRequest) -> (HttpResponse) query;
+  remove_relation : (principal) -> (Result_1);
+  remove_starred : (principal) -> (Result_1);
+  remove_wallet : (principal) -> (Result_1);
+  sanity_check : () -> (text) query;
+  set_wallet_as_primary : (principal) -> (Result_5);
+}

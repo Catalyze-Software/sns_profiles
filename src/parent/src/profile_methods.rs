@@ -4,7 +4,7 @@ use ic_scalable_misc::{
     enums::filter_type::FilterType, models::paged_response_models::PagedResponse,
 };
 
-use crate::models::profile_models::{ProfileFilter, ProfileResponse, ProfileSort};
+use shared::profile_models::{ProfileFilter, ProfileResponse, ProfileSort};
 
 use super::store::ScalableData;
 
