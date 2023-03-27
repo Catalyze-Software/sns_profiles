@@ -8,6 +8,8 @@ use shared::profile_models::{ProfileFilter, ProfileResponse, ProfileSort};
 
 use super::store::ScalableData;
 
+// Method used to get all the profiles from the child canisters filtered, sorted and paged
+// requires composite queries to be released to mainnet
 #[query(composite = true)]
 #[candid_method(query)]
 async fn get_profiles(

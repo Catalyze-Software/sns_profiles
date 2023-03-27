@@ -140,15 +140,10 @@ type WalletResponse = record {
   is_primary : bool;
 };
 type WasmVersion = variant { None; Version : nat64; Custom };
-service : (text, principal, principal) -> {
+service : () -> {
   __get_candid_interface_tmp_hack : () -> (text) query;
   accept_cycles : () -> (nat64);
-  close_child_canister_and_spawn_sibling : (
-      principal,
-      nat64,
-      vec nat8,
-      opt principal,
-    ) -> (Result);
+  close_child_canister_and_spawn_sibling : (nat64, vec nat8) -> (Result);
   get_available_canister : () -> (Result_1) query;
   get_canisters : () -> (vec ScalableCanisterDetails) query;
   get_latest_wasm_version : () -> (WasmVersion) query;

@@ -41,8 +41,6 @@ export interface ErrorMessage {
   'inputs' : [] | [Array<string>],
   'location' : string,
 }
-export type FilterType = { 'Or' : null } |
-  { 'And' : null };
 export interface HttpHeader { 'value' : string, 'name' : string }
 export interface HttpRequest {
   'url' : string,
@@ -56,19 +54,6 @@ export interface HttpResponse {
   'headers' : Array<HttpHeader>,
 }
 export interface Manifest { 'entries' : Array<ChunkData> }
-export interface Metadata {
-  'updated_at' : bigint,
-  'name' : string,
-  'max_entries' : bigint,
-  'current_entry_id' : [] | [bigint],
-  'created_at' : bigint,
-  'used_data' : bigint,
-  'cycles' : bigint,
-  'is_available' : boolean,
-  'identifier' : bigint,
-  'entries_count' : bigint,
-  'parent' : Principal,
-}
 export interface PostProfile {
   'username' : string,
   'display_name' : string,
@@ -129,11 +114,7 @@ export type Result_1 = { 'Ok' : ProfileResponse } |
   { 'Err' : ApiError };
 export type Result_2 = { 'Ok' : boolean } |
   { 'Err' : ApiError };
-export type Result_3 = { 'Ok' : ApplicationRole } |
-  { 'Err' : ApiError };
-export type Result_4 = { 'Ok' : Metadata } |
-  { 'Err' : ApiError };
-export type Result_5 = { 'Ok' : null } |
+export type Result_3 = { 'Ok' : null } |
   { 'Err' : null };
 export interface UpdateMessage {
   'canister_principal' : Principal,
@@ -165,23 +146,19 @@ export interface WalletResponse {
   'is_primary' : boolean,
 }
 export interface _SERVICE {
+  '__get_candid_interface_tmp_hack' : ActorMethod<[], string>,
   'accept_cycles' : ActorMethod<[], bigint>,
-  'add_entry_by_parent' : ActorMethod<
-    [[] | [Principal], Uint8Array | number[]],
-    Result
-  >,
+  'add_entry_by_parent' : ActorMethod<[Uint8Array | number[]], Result>,
   'add_profile' : ActorMethod<[PostProfile, Principal], Result_1>,
   'add_relation' : ActorMethod<[Principal, RelationType], Result_1>,
   'add_starred' : ActorMethod<[Principal], Result_1>,
   'add_wallet' : ActorMethod<[PostWallet], Result_1>,
   'approve_code_of_conduct' : ActorMethod<[bigint], Result_2>,
   'edit_profile' : ActorMethod<[UpdateProfile], Result_1>,
-  'get_application_role' : ActorMethod<[], Result_3>,
   'get_chunked_data' : ActorMethod<
-    [Array<ProfileFilter>, FilterType, bigint, bigint],
+    [Array<ProfileFilter>, bigint, bigint],
     [Uint8Array | number[], [bigint, bigint]]
   >,
-  'get_metadata' : ActorMethod<[], Result_4>,
   'get_profile_by_identifier' : ActorMethod<[Principal], Result_1>,
   'get_profile_by_user_principal' : ActorMethod<[Principal], Result_1>,
   'get_profiles_by_identifier' : ActorMethod<
@@ -200,6 +177,5 @@ export interface _SERVICE {
   'remove_relation' : ActorMethod<[Principal], Result_1>,
   'remove_starred' : ActorMethod<[Principal], Result_1>,
   'remove_wallet' : ActorMethod<[Principal], Result_1>,
-  'sanity_check' : ActorMethod<[], string>,
-  'set_wallet_as_primary' : ActorMethod<[Principal], Result_5>,
+  'set_wallet_as_primary' : ActorMethod<[Principal], Result_3>,
 }

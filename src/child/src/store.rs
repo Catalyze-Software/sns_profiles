@@ -4,7 +4,6 @@ use candid::Principal;
 use ic_cdk::api::{call, time};
 use ic_scalable_canister::store::Data;
 
-use ic_scalable_misc::enums::filter_type::FilterType;
 use ic_scalable_misc::helpers::serialize_helper::serialize;
 use ic_scalable_misc::models::identifier_model::Identifier;
 use ic_scalable_misc::{
@@ -13,7 +12,6 @@ use ic_scalable_misc::{
         application_role_type::ApplicationRole,
         asset_type::Asset,
         sort_type::SortDirection,
-        whitelist_rights_type::WhitelistRights,
     },
     helpers::{error_helper::api_error, paging_helper::get_paged_data},
     models::paged_response_models::PagedResponse,
@@ -35,6 +33,7 @@ thread_local! {
 pub struct Store;
 
 impl Store {
+    // Method to add a profile to the data store
     pub async fn add_profile(
         caller: Principal,
         post_profile: PostProfile,
@@ -45,7 +44,9 @@ impl Store {
             format!("post_profile - {:?}", &post_profile),
         ]);
 
+        // Check if the user has already registered a profile
         match Self::_get_profile_from_caller(caller) {
+            // If the user has already registered a profile, return an error
             Some(_) => Err(api_error(
                 ApiErrorType::BadRequest,
                 "ALREADY_REGISTERED",
@@ -54,9 +55,11 @@ impl Store {
                 "add_profile",
                 inputs,
             )),
+            // If the user has not registered a profile, continue and validate the post_profile method argument
             None => match validate_post_profile(post_profile.clone()) {
                 Err(err) => Err(err),
                 Ok(_) => {
+                    // Check if the username is already taken
                     if Self::_has_user_name(
                         &DATA.with(|data| Data::get_entries(data)),
                         &post_profile.username,
@@ -73,6 +76,7 @@ impl Store {
 
                     let empty = "".to_string();
 
+                    // Create a new profile object and set the post profile values
                     let profile = Profile {
                         principal: caller,
                         username: post_profile.username,
@@ -105,14 +109,18 @@ impl Store {
                         created_on: time(),
                         member_identifier: Principal::anonymous(),
                     };
-                    let new_entry = DATA.with(|data| {
+                    // Add the new profile to the data store and pass in the "kind" as a third parameter to generate a identifier
+                    let add_entry_result = DATA.with(|data| {
                         Data::add_entry(data, profile.clone(), Some("pfe".to_string()))
                     });
 
-                    match new_entry {
+                    // Check if the profile was added to the data store successfully
+                    match add_entry_result {
+                        // The profile was not added to the data store because the canister is at capacity
                         Err(err) => match err {
                             ApiError::CanisterAtCapacity(message) => {
                                 let _data = DATA.with(|v| v.borrow().clone());
+                                // Spawn a sibling canister and pass the profile data to it
                                 match Data::spawn_sibling(_data, profile).await {
                                     Ok(_) => Err(ApiError::CanisterAtCapacity(message)),
                                     Err(err) => Err(err),
@@ -121,6 +129,7 @@ impl Store {
                             _ => Err(err),
                         },
                         Ok((identifier, mut profile)) => {
+                            // Create a new member entry on the specified member canister
                             let member_result: Result<(Result<Principal, ApiError>,), _> =
                                 call::call(
                                     member_canister,
@@ -131,6 +140,7 @@ impl Store {
                             match member_result {
                                 Ok(_result) => match _result.0 {
                                     Ok(_member_identifier) => {
+                                        // Update the profile with the member identifier
                                         DATA.with(|data| {
                                             profile.member_identifier = _member_identifier;
                                             let _ = Data::update_entry(
@@ -161,6 +171,7 @@ impl Store {
         }
     }
 
+    // Method to update a profile in the data store
     pub fn update_profile(
         caller: Principal,
         update_profile: UpdateProfile,
@@ -169,70 +180,66 @@ impl Store {
             format!("principal - {:?}", &caller),
             format!("update_profile - {:?}", &update_profile),
         ]);
+        // get the profile from the data store
         DATA.with(|data| match Self::_get_profile_from_caller(caller) {
+            // If the profile does not exist, return an error
             None => Err(Self::_profile_not_found_error("update_profile", inputs)),
-            Some((_identifier, profile)) => match validate_update_profile(update_profile.clone()) {
-                Err(err) => Err(err),
-                Ok(_) => {
-                    let email = match update_profile.email {
-                        None => "".to_string(),
-                        Some(_email) => _email,
-                    };
-
-                    if email != "" {
-                        if profile.email != email
-                            && Self::_has_email(&Data::get_entries(data), &email)
-                        {
-                            return Err(api_error(
-                                ApiErrorType::BadRequest,
-                                "EMAIL_TAKEN",
-                                "Email already taken",
-                                DATA.with(|data| Data::get_name(data)).as_str(),
-                                "update_profile",
-                                inputs,
-                            ));
+            // If the profile exists, continue and validate the update_profile method argument
+            Some((_identifier, mut profile)) => {
+                match validate_update_profile(update_profile.clone()) {
+                    Err(err) => Err(err),
+                    Ok(_) => {
+                        // Check if the email is not empty
+                        let email = match update_profile.email {
+                            None => "".to_string(),
+                            Some(_email) => _email,
+                        };
+                        // Check if it is not the same as the current email and the email is already taken
+                        if email != "" {
+                            if profile.email != email
+                                && Self::_has_email(&Data::get_entries(data), &email)
+                            {
+                                return Err(api_error(
+                                    ApiErrorType::BadRequest,
+                                    "EMAIL_TAKEN",
+                                    "Email already taken",
+                                    DATA.with(|data| Data::get_name(data)).as_str(),
+                                    "update_profile",
+                                    inputs,
+                                ));
+                            }
                         }
-                    }
 
-                    let updated_profile = Profile {
-                        principal: caller,
-                        username: profile.username.clone(),
-                        display_name: update_profile.display_name,
-                        application_role: profile.application_role.clone(),
-                        first_name: update_profile.first_name,
-                        last_name: update_profile.last_name,
-                        privacy: update_profile.privacy,
-                        about: update_profile.about,
-                        email,
-                        date_of_birth: update_profile.date_of_birth,
-                        city: update_profile.city,
-                        state_or_province: update_profile.state_or_province,
-                        country: update_profile.country,
-                        profile_image: update_profile.profile_image,
-                        banner_image: update_profile.banner_image,
-                        skills: update_profile.skills,
-                        interests: update_profile.interests,
-                        causes: update_profile.causes,
-                        website: update_profile.website,
-                        code_of_conduct: profile.code_of_conduct.clone(),
-                        wallets: profile.wallets.clone(),
-                        starred: profile.starred.clone(),
-                        relations: profile.relations.clone(),
-                        extra: update_profile.extra,
-                        updated_on: time(),
-                        created_on: profile.created_on,
-                        member_identifier: profile.member_identifier,
-                    };
-                    match DATA
-                        .with(|data| Data::update_entry(data, _identifier, updated_profile.clone()))
-                    {
-                        Err(err) => Err(err),
-                        Ok((identifier, profile)) => {
-                            Ok(Self::_map_profile_to_profile_response(identifier, profile))
+                        // update profile fields
+                        profile.display_name = update_profile.display_name;
+                        profile.first_name = update_profile.first_name;
+                        profile.last_name = update_profile.last_name;
+                        profile.privacy = update_profile.privacy;
+                        profile.about = update_profile.about;
+                        profile.email = email;
+                        profile.date_of_birth = update_profile.date_of_birth;
+                        profile.city = update_profile.city;
+                        profile.state_or_province = update_profile.state_or_province;
+                        profile.country = update_profile.country;
+                        profile.profile_image = update_profile.profile_image;
+                        profile.banner_image = update_profile.banner_image;
+                        profile.skills = update_profile.skills;
+                        profile.interests = update_profile.interests;
+                        profile.causes = update_profile.causes;
+                        profile.website = update_profile.website;
+                        profile.extra = update_profile.extra;
+                        profile.updated_on = time();
+
+                        // update the profile in the data store
+                        match DATA.with(|data| Data::update_entry(data, _identifier, profile)) {
+                            Err(err) => Err(err),
+                            Ok((identifier, profile)) => {
+                                Ok(Self::_map_profile_to_profile_response(identifier, profile))
+                            }
                         }
                     }
                 }
-            },
+            }
         })
     }
 
@@ -242,9 +249,13 @@ impl Store {
             format!("wallet - {:?}", &wallet),
         ]);
 
+        // get the profile from the data store
         match Self::_get_profile_from_caller(caller) {
+            // If the profile does not exist, return an error
             None => Err(Self::_profile_not_found_error("add_wallet", inputs)),
+            // If the profile exists, continue
             Some((_identifier, mut _profile)) => {
+                // Add the wallet to the profile, insert overwrites if the wallet already exists
                 _profile.wallets.insert(
                     wallet.principal,
                     Wallet {
@@ -252,6 +263,7 @@ impl Store {
                         provider: wallet.provider,
                     },
                 );
+                // Update the profile in the data store
                 DATA.with(|data| Data::update_entry(data, _identifier, _profile))
                     .map_or_else(
                         |err| Err(err),
@@ -261,16 +273,22 @@ impl Store {
         }
     }
 
+    // Method to set a wallet as primary
     pub fn set_wallet_as_primary(caller: Principal, wallet_principal: Principal) -> Result<(), ()> {
+        // get the profile from the data store
         if let Some((_identifier, mut _profile)) = Store::_get_profile_from_caller(caller) {
+            // Set all wallets to not primary
             for (_wallet_principal, mut _wallet) in _profile.wallets.iter_mut() {
                 _wallet.is_primary = false;
             }
+            // Set the wallet as primary
             _profile
                 .wallets
                 .get_mut(&wallet_principal)
                 .unwrap()
                 .is_primary = true;
+
+            // Update the profile in the data store
             if let Ok(_) = DATA.with(|data| Data::update_entry(data, _identifier, _profile)) {
                 return Ok(());
             } else {
@@ -281,6 +299,7 @@ impl Store {
         }
     }
 
+    // Method to remove a wallet from a profile
     pub fn remove_wallet(
         caller: Principal,
         wallet_principal: Principal,
@@ -290,11 +309,16 @@ impl Store {
             format!("wallet - {:?}", &wallet_principal),
         ]);
 
+        // get the profile from the data store
         match Self::_get_profile_from_caller(caller) {
+            // If the profile does not exist, return an error
             None => Err(Self::_profile_not_found_error("remove_wallet", inputs)),
+            // If the profile exists, continue
             Some((_identifier, mut _profile)) => {
+                // Remove the wallet from the profile
                 _profile.wallets.remove(&wallet_principal);
 
+                // Update the profile in the data store
                 DATA.with(|data| Data::update_entry(data, _identifier, _profile))
                     .map_or_else(
                         |err| Err(err),
@@ -304,6 +328,7 @@ impl Store {
         }
     }
 
+    // Method to add a starred identifier to a profile
     pub fn add_starred(
         caller: Principal,
         starred_identifier: Principal,
@@ -312,8 +337,9 @@ impl Store {
             format!("principal - {:?}", &caller.to_string()),
             format!("identifier - {:?}", &starred_identifier.to_string()),
         ]);
-
+        // decode the identifier
         let (_, _, kind) = Identifier::decode(&starred_identifier);
+        // check if the identifier is valid to use as a starred identifier
         if !vec!["grp".to_string(), "tsk".to_string(), "evt".to_string()].contains(&kind) {
             return Err(api_error(
                 ApiErrorType::NotFound,
@@ -325,9 +351,12 @@ impl Store {
             ));
         }
 
+        // get the profile from the data store
         match Self::_get_profile_from_caller(caller) {
             None => Err(Self::_profile_not_found_error("add_starred", inputs)),
+            // If the profile exists, continue
             Some((_identifier, mut _profile)) => {
+                // Add the starred identifier to the profile
                 _profile.starred.insert(starred_identifier, kind);
 
                 DATA.with(|data| Data::update_entry(data, _identifier, _profile))
@@ -339,6 +368,7 @@ impl Store {
         }
     }
 
+    // Method to remove a starred identifier from a profile
     pub fn remove_starred(
         caller: Principal,
         starred_identifier: Principal,
@@ -348,22 +378,15 @@ impl Store {
             format!("identifier - {:?}", &starred_identifier),
         ]);
 
-        let (_, _, kind) = Identifier::decode(&starred_identifier);
-        if !vec!["grp".to_string(), "tsk".to_string(), "evt".to_string()].contains(&kind) {
-            return Err(api_error(
-                ApiErrorType::NotFound,
-                "INVALID TYPE",
-                format!("'{}' is not supported", kind).as_str(),
-                DATA.with(|data| Data::get_name(data)).as_str(),
-                "remove_starred",
-                inputs,
-            ));
-        }
-
+        // get the profile from the data store
         match Self::_get_profile_from_caller(caller) {
+            // If the profile does not exist, return an error
             None => Err(Self::_profile_not_found_error("remove_starred", inputs)),
+            // If the profile exists, continue
             Some((_identifier, mut _profile)) => {
+                // Remove the starred identifier from the profile
                 _profile.starred.remove(&starred_identifier);
+                // Update the profile in the data store
                 DATA.with(|data| Data::update_entry(data, _identifier, _profile))
                     .map_or_else(
                         |err| Err(err),
@@ -373,14 +396,20 @@ impl Store {
         }
     }
 
+    // Method to get all starred identifiers of a specific type
     pub fn get_starred(caller: Principal, kind: String) -> Vec<Principal> {
+        // get the profile from the data store
         let profile = Self::_get_profile_from_caller(caller);
+        // If the profile exists, continue
         if let Some((_principal, _profile)) = profile {
+            // Create a vector to hold the starred identifiers
             let mut starred = vec![];
+            // Iterate through the starred identifiers in the profile
             _profile
                 .starred
                 .into_iter()
                 .for_each(|(_starred_identifier, _kind)| {
+                    // If the kind matches the kind passed in, add it to the vector
                     if _kind == kind {
                         starred.push(_starred_identifier)
                     }
@@ -390,6 +419,7 @@ impl Store {
         return vec![];
     }
 
+    // Method to add a relation to a profile
     pub fn add_relation(
         caller: Principal,
         relation_type: RelationType,
@@ -404,7 +434,9 @@ impl Store {
             ),
         ]);
 
+        // decode the identifier
         let (_, _, kind) = Identifier::decode(&relation_identifier);
+        // check if the identifier is valid to use as a relation identifier
         if &kind != &"pfe".to_string() {
             return Err(api_error(
                 ApiErrorType::NotFound,
@@ -416,13 +448,18 @@ impl Store {
             ));
         }
 
+        // get the profile from the data store
         match Self::_get_profile_from_caller(caller) {
+            // If the profile does not exist, return an error
             None => Err(Self::_profile_not_found_error("add_relation", inputs)),
+            // If the profile exists, continue
             Some((_identifier, mut _profile)) => {
+                // Add the relation to the profile, if existing it will be overwritten
                 _profile
                     .relations
                     .insert(relation_identifier, relation_type.to_string());
 
+                // Update the profile in the data store
                 DATA.with(|data| Data::update_entry(data, _identifier, _profile))
                     .map_or_else(
                         |err| Err(err),
@@ -432,14 +469,20 @@ impl Store {
         }
     }
 
+    // Method to get the relations of a profile by type
     pub fn get_relations(caller: Principal, relation_type: RelationType) -> Vec<Principal> {
+        // get the profile from the data store
         let profile = Self::_get_profile_from_caller(caller);
+        // If the profile exists, continue
         if let Some((_principal, _profile)) = profile {
+            // Create a vector to hold the relations
             let mut relations = vec![];
+            // Iterate through the relations in the profile
             _profile
                 .relations
                 .into_iter()
                 .for_each(|(_relation_identifier, _relation_type)| {
+                    // If the relation type matches the relation type passed in, add it to the vector
                     if _relation_type == relation_type.to_string() {
                         relations.push(_relation_identifier);
                     }
@@ -449,6 +492,7 @@ impl Store {
         return vec![];
     }
 
+    // Method to remove a relation from a profile
     pub fn remove_relation(
         caller: Principal,
         relation_identifier: Principal,
@@ -458,23 +502,15 @@ impl Store {
             format!("relation_identifier - {:?}", &relation_identifier),
         ]);
 
-        let (_, _, kind) = Identifier::decode(&relation_identifier);
-        if &kind != &"pfe".to_string() {
-            return Err(api_error(
-                ApiErrorType::NotFound,
-                "INVALID TYPE",
-                format!("'{}' is not supported", kind).as_str(),
-                DATA.with(|data| Data::get_name(data)).as_str(),
-                "remove_starred",
-                inputs,
-            ));
-        }
-
+        // get the profile from the data store
         match Self::_get_profile_from_caller(caller) {
+            // If the profile does not exist, return an error
             None => Err(Self::_profile_not_found_error("remove_relation", inputs)),
+            // If the profile exists, continue
             Some((_identifier, mut _profile)) => {
+                // Remove the relation from the profile
                 _profile.relations.remove(&relation_identifier);
-
+                // Update the profile in the data store
                 DATA.with(|data| Data::update_entry(data, _identifier, _profile))
                     .map_or_else(
                         |err| Err(err),
@@ -484,37 +520,49 @@ impl Store {
         }
     }
 
+    // Method to get the profile of the caller
     pub fn get_profile_by_user_principal(
         principal: Principal,
     ) -> Result<ProfileResponse, ApiError> {
+        // get the profile from the data store
         match Self::_get_profile_from_caller(principal) {
+            // If the profile does not exist, return an error
             None => Err(Self::_profile_not_found_error(
                 "get_profile_by_user_principal",
                 None,
             )),
+            // If the profile exists, continue
             Some((_identifier, profile)) => {
                 Ok(Self::_map_profile_to_profile_response(_identifier, profile))
             }
         }
     }
 
+    // Method to get the profile by an identifier
     pub fn get_profile_by_identifier(identifier: Principal) -> Result<ProfileResponse, ApiError> {
+        // get the profile from the data store
         match DATA.with(|data| Data::get_entry(data, identifier)) {
+            // If the profile does not exist, return an error
             Err(err) => Err(err),
+            // If the profile exists, continue
             Ok((_identifier, profile)) => {
                 Ok(Self::_map_profile_to_profile_response(_identifier, profile))
             }
         }
     }
 
+    // Method to get profiles by a list of principals
     pub fn get_profiles_by_user_principal(principals: Vec<Principal>) -> Vec<ProfileResponse> {
+        // get the profiles from the data store
         let fetched_profiles = DATA.with(|data| Data::get_entries(data));
 
+        // filter the profiles by the principals passed in
         principals
             .into_iter()
             .filter_map(|principal| {
                 fetched_profiles
                     .iter()
+                    // filter the profiles by the principal
                     .find(|f| f.1.principal == principal)
                     .map(|(_identifier, profile)| {
                         Self::_map_profile_to_profile_response(_identifier.clone(), profile.clone())
@@ -523,12 +571,17 @@ impl Store {
             .collect()
     }
 
+    // Method to get profiles by a list of identifiers
     pub fn get_profiles_by_identifier(profile_identifiers: Vec<Principal>) -> Vec<ProfileResponse> {
+        // create a vector to hold the profiles
         let mut profiles: Vec<ProfileResponse> = vec![];
 
+        // filter the profiles by the principals passed in
         for identifier in profile_identifiers {
+            // get the profile from the data store
             if let Ok((_identifier, profile)) = DATA.with(|data| Data::get_entry(data, identifier))
             {
+                // add the profile to the vector
                 profiles.push(Self::_map_profile_to_profile_response(_identifier, profile));
             }
         }
@@ -536,6 +589,7 @@ impl Store {
         profiles
     }
 
+    // Method to set the approved code of conduct version for a profile
     pub fn approve_code_of_conduct(caller: Principal, version: u64) -> Result<bool, ApiError> {
         match Self::_get_profile_from_caller(caller) {
             None => Err(Self::_profile_not_found_error(
@@ -554,25 +608,32 @@ impl Store {
         }
     }
 
-    pub fn get_paged_profiles_by_id(
+    pub fn get_paged_profiles_by_identifier(
         identifiers: Vec<Principal>,
         limit: usize,
         page: usize,
         filters: Vec<ProfileFilter>,
         sort: ProfileSort,
     ) -> PagedResponse<ProfileResponse> {
+        // create a vector to hold the profiles
         let mut profiles: Vec<ProfileResponse> = vec![];
+
         DATA.with(|data| {
+            // filter the profiles by the identifiers passed in
             identifiers.into_iter().for_each(|identifier| {
                 if let Ok((_identifier, _profile)) = Data::get_entry(&data, identifier) {
+                    // add the profile to the vector
                     profiles.push(Self::_map_profile_to_profile_response(
                         _identifier,
                         _profile,
                     ))
                 };
             });
+            // filter the profiles by the filters passed in
             let filtered_profiles = Self::_get_filtered_profiles(profiles, filters);
+            // sort the profiles by the sort passed in
             let ordered_profiles = Self::_get_ordered_profiles(filtered_profiles, sort);
+            // return the paged profiles
             get_paged_data(ordered_profiles, limit, page)
         })
     }
@@ -584,55 +645,30 @@ impl Store {
         filters: Vec<ProfileFilter>,
         sort: ProfileSort,
     ) -> PagedResponse<ProfileResponse> {
+        // create a vector to hold the profiles
         let mut profiles: Vec<ProfileResponse> = vec![];
         DATA.with(|data| {
+            // get profiles from the data store
             let all_profiles = Data::get_entries(data);
+            // filter the profiles by the principals passed in
             principals.into_iter().for_each(|p| {
                 if let Some((_identifier, _profile)) =
                     all_profiles.iter().find(|(_, _p)| _p.principal == p)
                 {
+                    // add the profile to the vector
                     profiles.push(Self::_map_profile_to_profile_response(
                         _identifier.clone(),
                         _profile.clone(),
                     ));
                 };
             });
+            // filter the profiles by the filters passed in
             let filtered_profiles = Self::_get_filtered_profiles(profiles, filters);
+            // sort the profiles by the sort passed in
             let ordered_profiles = Self::_get_ordered_profiles(filtered_profiles, sort);
+            // return the paged profiles
             get_paged_data(ordered_profiles, limit, page)
         })
-    }
-
-    pub fn update_application_role(
-        principal: Principal,
-        application_role: ApplicationRole,
-    ) -> Result<ProfileResponse, ApiError> {
-        match Self::_get_profile_from_caller(principal) {
-            None => Err(Self::_profile_not_found_error(
-                "update_application_role",
-                None,
-            )),
-            Some((_, mut _existing)) => {
-                _existing.application_role = application_role;
-                _existing.updated_on = time();
-                match DATA.with(|data| Data::update_entry(data, principal, _existing)) {
-                    Err(err) => Err(err),
-                    Ok((identifier, profile)) => {
-                        Ok(Self::_map_profile_to_profile_response(identifier, profile))
-                    }
-                }
-            }
-        }
-    }
-
-    pub fn get_application_role(principal: Principal) -> Result<ApplicationRole, ApiError> {
-        match Self::_get_profile_from_caller(principal) {
-            None => Err(Self::_profile_not_found_error(
-                "update_application_role",
-                None,
-            )),
-            Some((_identifier, _profile)) => Ok(_profile.application_role),
-        }
     }
 
     fn _has_user_name(profiles: &Vec<(Principal, Profile)>, username: &String) -> bool {
@@ -645,6 +681,7 @@ impl Store {
         }
     }
 
+    // Method to check if a profile exists by email
     fn _has_email(profiles: &Vec<(Principal, Profile)>, email: &String) -> bool {
         let profile = profiles.iter().find(|(_, profile)| &profile.email == email);
         match profile {
@@ -653,6 +690,7 @@ impl Store {
         }
     }
 
+    // Method to order profiles by a sort
     fn _get_ordered_profiles(
         mut profiles: Vec<ProfileResponse>,
         sort: ProfileSort,
@@ -704,6 +742,7 @@ impl Store {
         profiles
     }
 
+    // Method to filter profiles by a filter
     fn _get_filtered_profiles(
         mut profiles: Vec<ProfileResponse>,
         filters: Vec<ProfileFilter>,
@@ -813,6 +852,7 @@ impl Store {
         profiles
     }
 
+    // Method to map a profile to a profile response
     fn _map_profile_to_profile_response(
         identifier: Principal,
         profile: Profile,
@@ -855,6 +895,7 @@ impl Store {
         }
     }
 
+    //  Method to get a profile from a caller
     fn _get_profile_from_caller(caller: Principal) -> Option<(Principal, Profile)> {
         let profiles = DATA.with(|data| Data::get_entries(data));
         profiles
@@ -862,6 +903,7 @@ impl Store {
             .find(|(_identifier, _profile)| _profile.principal == caller)
     }
 
+    // default profile_not_found error
     fn _profile_not_found_error(method_name: &str, inputs: Option<Vec<String>>) -> ApiError {
         api_error(
             ApiErrorType::NotFound,
@@ -873,40 +915,52 @@ impl Store {
         )
     }
 
+    // Used for composite_query calls from the parent canister
+    //
+    // Method to get filtered profiles serialized and chunked
     pub fn get_chunked_data(
         filters: Vec<ProfileFilter>,
-        filter_type: FilterType,
         chunk: usize,
         max_bytes_per_chunk: usize,
     ) -> (Vec<u8>, (usize, usize)) {
-        let groups = DATA.with(|data| Data::get_entries(data));
-        let mapped_groups: Vec<ProfileResponse> = groups
+        let profiles = DATA.with(|data| Data::get_entries(data));
+        // get profiles for filtering
+        let mapped_profiles: Vec<ProfileResponse> = profiles
             .iter()
-            .map(|(_identifier, _group_data)| {
-                Self::_map_profile_to_profile_response(_identifier.clone(), _group_data.clone())
+            .map(|(_identifier, _profile_data)| {
+                Self::_map_profile_to_profile_response(_identifier.clone(), _profile_data.clone())
             })
             .collect();
 
-        let filtered_groups = Self::_get_filtered_profiles(mapped_groups, filters);
-        if let Ok(bytes) = serialize(&filtered_groups) {
+        // filter profiles
+        let filtered_profiles = Self::_get_filtered_profiles(mapped_profiles, filters);
+        if let Ok(bytes) = serialize(&filtered_profiles) {
+            // Check if the bytes of the serialized profiles are greater than the max bytes per chunk specified as an argument
             if bytes.len() >= max_bytes_per_chunk {
+                // Get the start and end index of the bytes to be returned
                 let start = chunk * max_bytes_per_chunk;
                 let end = (chunk + 1) * (max_bytes_per_chunk);
 
+                // Get the bytes to be returned, if the end index is greater than the length of the bytes, return the remaining bytes
                 let response = if end >= bytes.len() {
                     bytes[start..].to_vec()
                 } else {
                     bytes[start..end].to_vec()
                 };
 
+                // Determine the max number of chunks that can be returned, a float is used because the number of chunks can be a decimal in this step
                 let mut max_chunks: f64 = 0.00;
                 if max_bytes_per_chunk < bytes.len() {
                     max_chunks = (bytes.len() / max_bytes_per_chunk) as f64;
                 }
+
+                // return the response and start and end chunk index, the end chunk index is calculated by rounding up the max chunks
                 return (response, (chunk, max_chunks.ceil() as usize));
             }
+            // if the bytes of the serialized profiles are less than the max bytes per chunk specified as an argument, return the bytes and start and end chunk index as 0
             return (bytes, (0, 0));
         } else {
+            // if the profiles cant be serialized return an empty vec and start and end chunk index as 0
             return (vec![], (0, 0));
         }
     }

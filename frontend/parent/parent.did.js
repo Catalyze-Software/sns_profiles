@@ -172,7 +172,7 @@ export const idlFactory = ({ IDL }) => {
     '__get_candid_interface_tmp_hack' : IDL.Func([], [IDL.Text], ['query']),
     'accept_cycles' : IDL.Func([], [IDL.Nat64], []),
     'close_child_canister_and_spawn_sibling' : IDL.Func(
-        [IDL.Principal, IDL.Nat64, IDL.Vec(IDL.Nat8), IDL.Opt(IDL.Principal)],
+        [IDL.Nat64, IDL.Vec(IDL.Nat8)],
         [Result],
         [],
       ),
@@ -191,6 +191,4 @@ export const idlFactory = ({ IDL }) => {
     'http_request' : IDL.Func([HttpRequest], [HttpResponse], ['query']),
   });
 };
-export const init = ({ IDL }) => {
-  return [IDL.Text, IDL.Principal, IDL.Principal];
-};
+export const init = ({ IDL }) => { return []; };

@@ -151,7 +151,7 @@ export interface _SERVICE {
   '__get_candid_interface_tmp_hack' : ActorMethod<[], string>,
   'accept_cycles' : ActorMethod<[], bigint>,
   'close_child_canister_and_spawn_sibling' : ActorMethod<
-    [Principal, bigint, Uint8Array | number[], [] | [Principal]],
+    [bigint, Uint8Array | number[]],
     Result
   >,
   'get_available_canister' : ActorMethod<[], Result_1>,

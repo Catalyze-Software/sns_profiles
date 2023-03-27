@@ -38,7 +38,6 @@ type ErrorMessage = record {
   inputs : opt vec text;
   location : text;
 };
-type FilterType = variant { Or; And };
 type HttpHeader = record { value : text; name : text };
 type HttpRequest = record {
   url : text;
@@ -52,19 +51,6 @@ type HttpResponse = record {
   headers : vec HttpHeader;
 };
 type Manifest = record { entries : vec ChunkData };
-type Metadata = record {
-  updated_at : nat64;
-  name : text;
-  max_entries : nat64;
-  current_entry_id : opt nat64;
-  created_at : nat64;
-  used_data : nat64;
-  cycles : nat64;
-  is_available : bool;
-  identifier : nat64;
-  entries_count : nat64;
-  parent : principal;
-};
 type PostProfile = record {
   username : text;
   display_name : text;
@@ -122,9 +108,7 @@ type RelationType = variant { Blocked; Friend };
 type Result = variant { Ok; Err : ApiError };
 type Result_1 = variant { Ok : ProfileResponse; Err : ApiError };
 type Result_2 = variant { Ok : bool; Err : ApiError };
-type Result_3 = variant { Ok : ApplicationRole; Err : ApiError };
-type Result_4 = variant { Ok : Metadata; Err : ApiError };
-type Result_5 = variant { Ok; Err };
+type Result_3 = variant { Ok; Err };
 type UpdateMessage = record { canister_principal : principal; message : text };
 type UpdateProfile = record {
   profile_image : Asset;
@@ -151,21 +135,20 @@ type WalletResponse = record {
   provider : text;
   is_primary : bool;
 };
-service : (principal, principal, text, nat64) -> {
+service : (principal, text, nat64) -> {
+  __get_candid_interface_tmp_hack : () -> (text) query;
   accept_cycles : () -> (nat64);
-  add_entry_by_parent : (opt principal, vec nat8) -> (Result);
+  add_entry_by_parent : (vec nat8) -> (Result);
   add_profile : (PostProfile, principal) -> (Result_1);
   add_relation : (principal, RelationType) -> (Result_1);
   add_starred : (principal) -> (Result_1);
   add_wallet : (PostWallet) -> (Result_1);
   approve_code_of_conduct : (nat64) -> (Result_2);
   edit_profile : (UpdateProfile) -> (Result_1);
-  get_application_role : () -> (Result_3) query;
-  get_chunked_data : (vec ProfileFilter, FilterType, nat64, nat64) -> (
+  get_chunked_data : (vec ProfileFilter, nat64, nat64) -> (
       vec nat8,
       record { nat64; nat64 },
     ) query;
-  get_metadata : () -> (Result_4) query;
   get_profile_by_identifier : (principal) -> (Result_1);
   get_profile_by_user_principal : (principal) -> (Result_1);
   get_profiles_by_identifier : (vec principal) -> (vec ProfileResponse);
@@ -178,6 +161,5 @@ service : (principal, principal, text, nat64) -> {
   remove_relation : (principal) -> (Result_1);
   remove_starred : (principal) -> (Result_1);
   remove_wallet : (principal) -> (Result_1);
-  sanity_check : () -> (text) query;
-  set_wallet_as_primary : (principal) -> (Result_5);
+  set_wallet_as_primary : (principal) -> (Result_3);
 }
