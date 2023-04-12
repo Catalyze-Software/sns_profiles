@@ -63,6 +63,35 @@ export interface PostProfile {
   'last_name' : string,
 }
 export interface PostWallet { 'principal' : Principal, 'provider' : string }
+export interface Profile {
+  'updated_on' : bigint,
+  'profile_image' : Asset,
+  'principal' : Principal,
+  'banner_image' : Asset,
+  'about' : string,
+  'country' : string,
+  'username' : string,
+  'starred' : Array<[Principal, string]>,
+  'interests' : Uint32Array | number[],
+  'city' : string,
+  'created_on' : bigint,
+  'email' : string,
+  'website' : string,
+  'display_name' : string,
+  'extra' : string,
+  'privacy' : ProfilePrivacy,
+  'wallets' : Array<[Principal, Wallet]>,
+  'state_or_province' : string,
+  'first_name' : string,
+  'last_name' : string,
+  'member_identifier' : Principal,
+  'causes' : Uint32Array | number[],
+  'code_of_conduct' : CodeOfConductDetails,
+  'date_of_birth' : bigint,
+  'skills' : Uint32Array | number[],
+  'relations' : Array<[Principal, string]>,
+  'application_role' : ApplicationRole,
+}
 export type ProfileFilter = { 'Interest' : number } |
   { 'Email' : string } |
   { 'Skill' : number } |
@@ -140,6 +169,7 @@ export interface UpdateProfile {
   'skills' : Uint32Array | number[],
 }
 export interface ValidationResponse { 'field' : string, 'message' : string }
+export interface Wallet { 'provider' : string, 'is_primary' : boolean }
 export interface WalletResponse {
   'principal' : Principal,
   'provider' : string,
@@ -174,6 +204,10 @@ export interface _SERVICE {
   'get_starred_groups' : ActorMethod<[], Array<Principal>>,
   'get_starred_tasks' : ActorMethod<[], Array<Principal>>,
   'http_request' : ActorMethod<[HttpRequest], HttpResponse>,
+  'migration_add_profiles' : ActorMethod<
+    [Array<[Principal, Profile]>],
+    undefined
+  >,
   'remove_relation' : ActorMethod<[Principal], Result_1>,
   'remove_starred' : ActorMethod<[Principal], Result_1>,
   'remove_wallet' : ActorMethod<[Principal], Result_1>,

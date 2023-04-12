@@ -24,6 +24,8 @@ use shared::profile_models::{
 
 use std::cell::RefCell;
 
+use crate::IDENTIFIER_KIND;
+
 use super::validation::{validate_post_profile, validate_update_profile};
 
 thread_local! {
@@ -111,7 +113,7 @@ impl Store {
                     };
                     // Add the new profile to the data store and pass in the "kind" as a third parameter to generate a identifier
                     let add_entry_result = DATA.with(|data| {
-                        Data::add_entry(data, profile.clone(), Some("pfe".to_string()))
+                        Data::add_entry(data, profile.clone(), Some(IDENTIFIER_KIND.to_string()))
                     });
 
                     // Check if the profile was added to the data store successfully
@@ -437,7 +439,7 @@ impl Store {
         // decode the identifier
         let (_, _, kind) = Identifier::decode(&relation_identifier);
         // check if the identifier is valid to use as a relation identifier
-        if &kind != &"pfe".to_string() {
+        if &kind != &IDENTIFIER_KIND.to_string() {
             return Err(api_error(
                 ApiErrorType::NotFound,
                 "INVALID TYPE",

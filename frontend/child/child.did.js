@@ -161,6 +161,36 @@ export const idlFactory = ({ IDL }) => {
     'body' : IDL.Vec(IDL.Nat8),
     'headers' : IDL.Vec(HttpHeader),
   });
+  const Wallet = IDL.Record({ 'provider' : IDL.Text, 'is_primary' : IDL.Bool });
+  const Profile = IDL.Record({
+    'updated_on' : IDL.Nat64,
+    'profile_image' : Asset,
+    'principal' : IDL.Principal,
+    'banner_image' : Asset,
+    'about' : IDL.Text,
+    'country' : IDL.Text,
+    'username' : IDL.Text,
+    'starred' : IDL.Vec(IDL.Tuple(IDL.Principal, IDL.Text)),
+    'interests' : IDL.Vec(IDL.Nat32),
+    'city' : IDL.Text,
+    'created_on' : IDL.Nat64,
+    'email' : IDL.Text,
+    'website' : IDL.Text,
+    'display_name' : IDL.Text,
+    'extra' : IDL.Text,
+    'privacy' : ProfilePrivacy,
+    'wallets' : IDL.Vec(IDL.Tuple(IDL.Principal, Wallet)),
+    'state_or_province' : IDL.Text,
+    'first_name' : IDL.Text,
+    'last_name' : IDL.Text,
+    'member_identifier' : IDL.Principal,
+    'causes' : IDL.Vec(IDL.Nat32),
+    'code_of_conduct' : CodeOfConductDetails,
+    'date_of_birth' : IDL.Nat64,
+    'skills' : IDL.Vec(IDL.Nat32),
+    'relations' : IDL.Vec(IDL.Tuple(IDL.Principal, IDL.Text)),
+    'application_role' : ApplicationRole,
+  });
   const Result_3 = IDL.Variant({ 'Ok' : IDL.Null, 'Err' : IDL.Null });
   return IDL.Service({
     '__get_candid_interface_tmp_hack' : IDL.Func([], [IDL.Text], ['query']),
@@ -198,6 +228,11 @@ export const idlFactory = ({ IDL }) => {
     'get_starred_groups' : IDL.Func([], [IDL.Vec(IDL.Principal)], ['query']),
     'get_starred_tasks' : IDL.Func([], [IDL.Vec(IDL.Principal)], ['query']),
     'http_request' : IDL.Func([HttpRequest], [HttpResponse], ['query']),
+    'migration_add_profiles' : IDL.Func(
+        [IDL.Vec(IDL.Tuple(IDL.Principal, Profile))],
+        [],
+        [],
+      ),
     'remove_relation' : IDL.Func([IDL.Principal], [Result_1], []),
     'remove_starred' : IDL.Func([IDL.Principal], [Result_1], []),
     'remove_wallet' : IDL.Func([IDL.Principal], [Result_1], []),

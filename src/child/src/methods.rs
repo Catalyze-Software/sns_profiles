@@ -2,13 +2,26 @@ use candid::{candid_method, Principal};
 use ic_cdk_macros::{query, update};
 
 use ic_cdk::caller;
+use ic_scalable_canister::store::Data;
 use ic_scalable_misc::enums::api_error_type::ApiError;
 
 use shared::profile_models::{
-    PostProfile, PostWallet, ProfileFilter, ProfileResponse, RelationType, UpdateProfile,
+    PostProfile, PostWallet, Profile, ProfileFilter, ProfileResponse, RelationType, UpdateProfile,
 };
 
+use crate::IDENTIFIER_KIND;
+
 use super::store::{Store, DATA};
+
+#[update]
+#[candid_method(update)]
+pub fn migration_add_profiles(profiles: Vec<(Principal, Profile)>) -> () {
+    DATA.with(|data| {
+        for profile in profiles {
+            let _ = Data::add_entry(data, profile.1, Some(IDENTIFIER_KIND.to_string()));
+        }
+    })
+}
 
 // This method is used to add a profile to the canister,
 // The method is async because it optionally creates a new canister is created
