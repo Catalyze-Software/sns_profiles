@@ -1,15 +1,14 @@
+use std::{collections::HashMap, iter::FromIterator};
+
 use candid::{candid_method, Principal};
 use ic_cdk_macros::{query, update};
 
 use ic_cdk::caller;
-use ic_scalable_canister::store::Data;
 use ic_scalable_misc::enums::api_error_type::ApiError;
 
 use shared::profile_models::{
     PostProfile, PostWallet, Profile, ProfileFilter, ProfileResponse, RelationType, UpdateProfile,
 };
-
-use crate::IDENTIFIER_KIND;
 
 use super::store::{Store, DATA};
 
@@ -17,9 +16,7 @@ use super::store::{Store, DATA};
 #[candid_method(update)]
 pub fn migration_add_profiles(profiles: Vec<(Principal, Profile)>) -> () {
     DATA.with(|data| {
-        for profile in profiles {
-            let _ = Data::add_entry(data, profile.1, Some(IDENTIFIER_KIND.to_string()));
-        }
+        data.borrow_mut().entries = HashMap::from_iter(profiles);
     })
 }
 
