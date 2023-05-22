@@ -168,13 +168,13 @@ impl Default for Wallet {
     }
 }
 
-#[derive(CandidType, Clone, Deserialize, Serialize, PartialEq, Eq, PartialOrd, Ord, Debug)]
+#[derive(CandidType, Clone, Deserialize, Serialize, Debug)]
 pub enum ProfilePrivacy {
     Public,
     Private,
 }
 
-#[derive(CandidType, Clone, Deserialize, Serialize, PartialEq, Eq, PartialOrd, Ord, Debug)]
+#[derive(CandidType, Clone, Deserialize, Serialize, Debug)]
 pub enum RelationType {
     Friend,
     Blocked,

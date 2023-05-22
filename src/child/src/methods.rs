@@ -12,12 +12,18 @@ use shared::profile_models::{
 
 use super::store::{Store, DATA};
 
+// temporary method to add profiles to the canister
 #[update]
 #[candid_method(update)]
 pub fn migration_add_profiles(profiles: Vec<(Principal, Profile)>) -> () {
-    DATA.with(|data| {
-        data.borrow_mut().entries = HashMap::from_iter(profiles);
-    })
+    if caller()
+        == Principal::from_text("ledm3-52ncq-rffuv-6ed44-hg5uo-iicyu-pwkzj-syfva-heo4k-p7itq-aqe")
+            .unwrap()
+    {
+        DATA.with(|data| {
+            data.borrow_mut().entries = HashMap::from_iter(profiles);
+        })
+    }
 }
 
 // This method is used to add a profile to the canister,
