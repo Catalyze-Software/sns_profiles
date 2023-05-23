@@ -1,6 +1,6 @@
 # Profile canister
 
-This repository is responsible for handling profiles of the Catalyze application. Profiles hold the users data like username, skills, intererests, wallets, etc. To get a full view of the data stored in the profile, check out the `shared/src/profile_models.rs` file
+Each individual user on Catalyze has a personal profile in which they can showcase their interests and skills as well as share a bio. Users also have the possibility to upload an avatar and a banner image.
 
 ## setup
 
