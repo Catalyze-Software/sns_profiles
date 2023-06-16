@@ -179,10 +179,12 @@ service : (principal, text, nat64) -> {
       vec nat8,
       record { nat64; nat64 },
     ) query;
-  get_profile_by_identifier : (principal) -> (Result_1);
-  get_profile_by_user_principal : (principal) -> (Result_1);
-  get_profiles_by_identifier : (vec principal) -> (vec ProfileResponse);
-  get_profiles_by_user_principal : (vec principal) -> (vec ProfileResponse);
+  get_profile_by_identifier : (principal) -> (Result_1) query;
+  get_profile_by_user_principal : (principal) -> (Result_1) query;
+  get_profiles_by_identifier : (vec principal) -> (vec ProfileResponse) query;
+  get_profiles_by_user_principal : (vec principal) -> (
+      vec ProfileResponse,
+    ) query;
   get_relations : (RelationType) -> (vec principal) query;
   get_starred_events : () -> (vec principal) query;
   get_starred_groups : () -> (vec principal) query;

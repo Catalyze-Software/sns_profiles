@@ -207,17 +207,25 @@ export const idlFactory = ({ IDL }) => {
         [IDL.Vec(IDL.Nat8), IDL.Tuple(IDL.Nat64, IDL.Nat64)],
         ['query'],
       ),
-    'get_profile_by_identifier' : IDL.Func([IDL.Principal], [Result_1], []),
-    'get_profile_by_user_principal' : IDL.Func([IDL.Principal], [Result_1], []),
+    'get_profile_by_identifier' : IDL.Func(
+        [IDL.Principal],
+        [Result_1],
+        ['query'],
+      ),
+    'get_profile_by_user_principal' : IDL.Func(
+        [IDL.Principal],
+        [Result_1],
+        ['query'],
+      ),
     'get_profiles_by_identifier' : IDL.Func(
         [IDL.Vec(IDL.Principal)],
         [IDL.Vec(ProfileResponse)],
-        [],
+        ['query'],
       ),
     'get_profiles_by_user_principal' : IDL.Func(
         [IDL.Vec(IDL.Principal)],
         [IDL.Vec(ProfileResponse)],
-        [],
+        ['query'],
       ),
     'get_relations' : IDL.Func(
         [RelationType],

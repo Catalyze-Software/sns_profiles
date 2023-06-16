@@ -39,28 +39,28 @@ pub async fn add_profile(
 
 // This method is used to get a single profile by an user principal
 #[query]
-#[candid_method(update)]
+#[candid_method(query)]
 pub fn get_profile_by_user_principal(principal: Principal) -> Result<ProfileResponse, ApiError> {
     Store::get_profile_by_user_principal(principal)
 }
 
 // This method is used to get a single profile by an identifier
 #[query]
-#[candid_method(update)]
+#[candid_method(query)]
 pub fn get_profile_by_identifier(id: Principal) -> Result<ProfileResponse, ApiError> {
     Store::get_profile_by_identifier(id)
 }
 
 // This method is used to get multiple profiles by principals
 #[query]
-#[candid_method(update)]
+#[candid_method(query)]
 pub fn get_profiles_by_user_principal(principals: Vec<Principal>) -> Vec<ProfileResponse> {
     Store::get_profiles_by_user_principal(principals)
 }
 
 // This method is used to get multiple profiles by identifiers
 #[query]
-#[candid_method(update)]
+#[candid_method(query)]
 pub fn get_profiles_by_identifier(identifiers: Vec<Principal>) -> Vec<ProfileResponse> {
     Store::get_profiles_by_identifier(identifiers)
 }
