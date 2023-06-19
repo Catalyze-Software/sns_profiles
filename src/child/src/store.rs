@@ -279,6 +279,11 @@ impl Store {
     pub fn set_wallet_as_primary(caller: Principal, wallet_principal: Principal) -> Result<(), ()> {
         // get the profile from the data store
         if let Some((_identifier, mut _profile)) = Store::_get_profile_from_caller(caller) {
+            // Check if the wallet exists
+            if _profile.wallets.get(&wallet_principal).is_none() {
+                return Err(());
+            }
+
             // Set all wallets to not primary
             for (_wallet_principal, mut _wallet) in _profile.wallets.iter_mut() {
                 _wallet.is_primary = false;
@@ -317,6 +322,17 @@ impl Store {
             None => Err(Self::_profile_not_found_error("remove_wallet", inputs)),
             // If the profile exists, continue
             Some((_identifier, mut _profile)) => {
+                // Check if the wallet exists
+                if let None = _profile.wallets.get(&wallet_principal) {
+                    return Err(api_error(
+                        ApiErrorType::NotFound,
+                        "WALLET_NOT_FOUND",
+                        "Wallet not found",
+                        DATA.with(|data| Data::get_name(data)).as_str(),
+                        "remove_wallet",
+                        inputs,
+                    ));
+                }
                 // Remove the wallet from the profile
                 _profile.wallets.remove(&wallet_principal);
 
@@ -386,6 +402,18 @@ impl Store {
             None => Err(Self::_profile_not_found_error("remove_starred", inputs)),
             // If the profile exists, continue
             Some((_identifier, mut _profile)) => {
+                // Check if the starred identifier exists
+                if let None = _profile.starred.get(&starred_identifier) {
+                    return Err(api_error(
+                        ApiErrorType::NotFound,
+                        "STARRED_NOT_FOUND",
+                        "Starred identifier not found",
+                        DATA.with(|data| Data::get_name(data)).as_str(),
+                        "remove_starred",
+                        inputs,
+                    ));
+                }
+
                 // Remove the starred identifier from the profile
                 _profile.starred.remove(&starred_identifier);
                 // Update the profile in the data store
@@ -510,6 +538,17 @@ impl Store {
             None => Err(Self::_profile_not_found_error("remove_relation", inputs)),
             // If the profile exists, continue
             Some((_identifier, mut _profile)) => {
+                // Check if the relation exists
+                if let None = _profile.relations.get(&relation_identifier) {
+                    return Err(api_error(
+                        ApiErrorType::NotFound,
+                        "RELATION_NOT_FOUND",
+                        "Relation identifier not found",
+                        DATA.with(|data| Data::get_name(data)).as_str(),
+                        "remove_relation",
+                        inputs,
+                    ));
+                }
                 // Remove the relation from the profile
                 _profile.relations.remove(&relation_identifier);
                 // Update the profile in the data store
