@@ -21,6 +21,7 @@ pub fn migration_add_profiles(profiles: Vec<(Principal, Profile)>) -> () {
             .unwrap()
     {
         DATA.with(|data| {
+            data.borrow_mut().current_entry_id = profiles.clone().len() as u64;
             data.borrow_mut().entries = HashMap::from_iter(profiles);
         })
     }
