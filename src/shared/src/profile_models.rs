@@ -1,11 +1,13 @@
 use core::fmt;
-use std::collections::HashMap;
+use std::{borrow::Cow, collections::HashMap};
 
-use candid::{CandidType, Deserialize, Principal};
+use candid::{CandidType, Decode, Deserialize, Encode, Principal};
 use ic_scalable_misc::{
     enums::{application_role_type::ApplicationRole, asset_type::Asset, sort_type::SortDirection},
     models::date_models::DateRange,
+    traits::stable_storage_trait::StableStorableTrait,
 };
+use ic_stable_structures::{storable::Bound, Storable};
 use serde::Serialize;
 
 #[derive(Clone, Debug, CandidType, Deserialize, Serialize)]
@@ -37,6 +39,20 @@ pub struct Profile {
     pub extra: String,
     pub updated_on: u64,
     pub created_on: u64,
+}
+
+impl StableStorableTrait for Profile {}
+
+impl Storable for Profile {
+    fn to_bytes(&self) -> std::borrow::Cow<[u8]> {
+        Cow::Owned(Encode!(self).unwrap())
+    }
+
+    fn from_bytes(bytes: std::borrow::Cow<[u8]>) -> Self {
+        Decode!(bytes.as_ref(), Self).unwrap()
+    }
+
+    const BOUND: Bound = Bound::Unbounded;
 }
 
 impl Default for Profile {

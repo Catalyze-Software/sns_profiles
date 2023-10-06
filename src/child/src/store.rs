@@ -22,14 +22,39 @@ use shared::profile_models::{
     ProfileSort, RelationType, UpdateProfile, Wallet, WalletResponse,
 };
 
+use ic_stable_structures::{
+    memory_manager::{MemoryId, MemoryManager, VirtualMemory},
+    {DefaultMemoryImpl, StableBTreeMap, StableCell},
+};
+
 use std::cell::RefCell;
 
 use crate::IDENTIFIER_KIND;
 
 use super::validation::{validate_post_profile, validate_update_profile};
 
+type Memory = VirtualMemory<DefaultMemoryImpl>;
+
 thread_local! {
-    pub static DATA: RefCell<Data<Profile>> = RefCell::new(Data::default());
+    pub static MEMORY_MANAGER: RefCell<MemoryManager<DefaultMemoryImpl>> =
+        RefCell::new(MemoryManager::init(DefaultMemoryImpl::default()));
+
+
+        // NEW STABLE
+        pub static STABLE_DATA: RefCell<StableCell<Data, Memory>> = RefCell::new(
+            StableCell::init(
+                MEMORY_MANAGER.with(|m| m.borrow().get(MemoryId::new(0))),
+                Data::default(),
+            ).expect("failed")
+        );
+
+        pub static ENTRIES: RefCell<StableBTreeMap<String, Profile, Memory>> = RefCell::new(
+            StableBTreeMap::init(
+                MEMORY_MANAGER.with(|m| m.borrow().get(MemoryId::new(4))),
+            )
+        );
+
+        pub static DATA: RefCell<ic_scalable_misc::models::original_data::Data<Profile>> = RefCell::new(ic_scalable_misc::models::original_data::Data::default());
 }
 
 pub struct Store;
@@ -53,7 +78,9 @@ impl Store {
                 ApiErrorType::BadRequest,
                 "ALREADY_REGISTERED",
                 "User profile already registered",
-                DATA.with(|data| Data::get_name(data)).as_str(),
+                STABLE_DATA
+                    .with(|data| Data::get_name(data.borrow().get()))
+                    .as_str(),
                 "add_profile",
                 inputs,
             )),
@@ -63,14 +90,16 @@ impl Store {
                 Ok(_) => {
                     // Check if the username is already taken
                     if Self::_has_user_name(
-                        &DATA.with(|data| Data::get_entries(data)),
+                        &ENTRIES.with(|entries| Data::get_entries(entries)),
                         &post_profile.username,
                     ) {
                         return Err(api_error(
                             ApiErrorType::BadRequest,
                             "USERNAME_TAKEN",
                             "Username already taken",
-                            DATA.with(|data| Data::get_name(data)).as_str(),
+                            STABLE_DATA
+                                .with(|data| Data::get_name(data.borrow().get()))
+                                .as_str(),
                             "add_profile",
                             inputs,
                         ));
@@ -112,8 +141,15 @@ impl Store {
                         member_identifier: Principal::anonymous(),
                     };
                     // Add the new profile to the data store and pass in the "kind" as a third parameter to generate a identifier
-                    let add_entry_result = DATA.with(|data| {
-                        Data::add_entry(data, profile.clone(), Some(IDENTIFIER_KIND.to_string()))
+                    let add_entry_result = STABLE_DATA.with(|data| {
+                        ENTRIES.with(|entries| {
+                            Data::add_entry(
+                                data,
+                                entries,
+                                profile.clone(),
+                                Some(IDENTIFIER_KIND.to_string()),
+                            )
+                        })
                     });
 
                     // Check if the profile was added to the data store successfully
@@ -121,9 +157,9 @@ impl Store {
                         // The profile was not added to the data store because the canister is at capacity
                         Err(err) => match err {
                             ApiError::CanisterAtCapacity(message) => {
-                                let _data = DATA.with(|v| v.borrow().clone());
+                                let _data = STABLE_DATA.with(|v| v.borrow().get().clone());
                                 // Spawn a sibling canister and pass the profile data to it
-                                match Data::spawn_sibling(_data, profile).await {
+                                match Data::spawn_sibling(&_data, profile).await {
                                     Ok(_) => Err(ApiError::CanisterAtCapacity(message)),
                                     Err(err) => Err(err),
                                 }
@@ -143,16 +179,20 @@ impl Store {
                                 Ok(_result) => match _result.0 {
                                     Ok(_member_identifier) => {
                                         // Update the profile with the member identifier
-                                        DATA.with(|data| {
+                                        STABLE_DATA.with(|data| {
                                             profile.member_identifier = _member_identifier;
-                                            let _ = Data::update_entry(
-                                                data,
-                                                identifier,
-                                                profile.clone(),
-                                            );
+                                            let _ = ENTRIES.with(|entries| {
+                                                Data::update_entry(
+                                                    data,
+                                                    entries,
+                                                    identifier,
+                                                    profile.clone(),
+                                                )
+                                            });
                                         });
                                         Ok(Self::_map_profile_to_profile_response(
-                                            identifier, profile,
+                                            identifier.to_string(),
+                                            profile,
                                         ))
                                     }
                                     Err(err) => Err(err),
@@ -161,7 +201,9 @@ impl Store {
                                     ApiErrorType::Unexpected,
                                     "ICC_MEMBER_CREATION_FAILED",
                                     err.1.as_str(),
-                                    DATA.with(|data| Data::get_name(data)).as_str(),
+                                    STABLE_DATA
+                                        .with(|data| Data::get_name(data.borrow().get()))
+                                        .as_str(),
                                     "add_profile",
                                     inputs,
                                 )),
@@ -183,7 +225,7 @@ impl Store {
             format!("update_profile - {:?}", &update_profile),
         ]);
         // get the profile from the data store
-        DATA.with(|data| match Self::_get_profile_from_caller(caller) {
+        STABLE_DATA.with(|data| match Self::_get_profile_from_caller(caller) {
             // If the profile does not exist, return an error
             None => Err(Self::_profile_not_found_error("update_profile", inputs)),
             // If the profile exists, continue and validate the update_profile method argument
@@ -199,13 +241,17 @@ impl Store {
                         // Check if it is not the same as the current email and the email is already taken
                         if email != "" {
                             if profile.email != email
-                                && Self::_has_email(&Data::get_entries(data), &email)
+                                && ENTRIES.with(|entries| {
+                                    Self::_has_email(&Data::get_entries(entries), &email)
+                                })
                             {
                                 return Err(api_error(
                                     ApiErrorType::BadRequest,
                                     "EMAIL_TAKEN",
                                     "Email already taken",
-                                    DATA.with(|data| Data::get_name(data)).as_str(),
+                                    STABLE_DATA
+                                        .with(|data| Data::get_name(data.borrow().get()))
+                                        .as_str(),
                                     "update_profile",
                                     inputs,
                                 ));
@@ -233,10 +279,17 @@ impl Store {
                         profile.updated_on = time();
 
                         // update the profile in the data store
-                        match DATA.with(|data| Data::update_entry(data, _identifier, profile)) {
+                        match STABLE_DATA.with(|data| {
+                            ENTRIES.with(|entries| {
+                                Data::update_entry(data, entries, _identifier, profile)
+                            })
+                        }) {
                             Err(err) => Err(err),
                             Ok((identifier, profile)) => {
-                                Ok(Self::_map_profile_to_profile_response(identifier, profile))
+                                Ok(Self::_map_profile_to_profile_response(
+                                    identifier.to_string(),
+                                    profile,
+                                ))
                             }
                         }
                     }
@@ -266,10 +319,20 @@ impl Store {
                     },
                 );
                 // Update the profile in the data store
-                DATA.with(|data| Data::update_entry(data, _identifier, _profile))
+                STABLE_DATA
+                    .with(|data| {
+                        ENTRIES.with(|entries| {
+                            Data::update_entry(data, entries, _identifier, _profile)
+                        })
+                    })
                     .map_or_else(
                         |err| Err(err),
-                        |result| Ok(Self::_map_profile_to_profile_response(result.0, result.1)),
+                        |result| {
+                            Ok(Self::_map_profile_to_profile_response(
+                                result.0.to_string(),
+                                result.1,
+                            ))
+                        },
                     )
             }
         }
@@ -296,7 +359,9 @@ impl Store {
                 .is_primary = true;
 
             // Update the profile in the data store
-            if let Ok(_) = DATA.with(|data| Data::update_entry(data, _identifier, _profile)) {
+            if let Ok(_) = STABLE_DATA.with(|data| {
+                ENTRIES.with(|entries| Data::update_entry(data, entries, _identifier, _profile))
+            }) {
                 return Ok(());
             } else {
                 return Err(());
@@ -328,7 +393,9 @@ impl Store {
                         ApiErrorType::NotFound,
                         "WALLET_NOT_FOUND",
                         "Wallet not found",
-                        DATA.with(|data| Data::get_name(data)).as_str(),
+                        STABLE_DATA
+                            .with(|data| Data::get_name(data.borrow().get()))
+                            .as_str(),
                         "remove_wallet",
                         inputs,
                     ));
@@ -337,10 +404,20 @@ impl Store {
                 _profile.wallets.remove(&wallet_principal);
 
                 // Update the profile in the data store
-                DATA.with(|data| Data::update_entry(data, _identifier, _profile))
+                STABLE_DATA
+                    .with(|data| {
+                        ENTRIES.with(|entries| {
+                            Data::update_entry(data, entries, _identifier, _profile)
+                        })
+                    })
                     .map_or_else(
                         |err| Err(err),
-                        |result| Ok(Self::_map_profile_to_profile_response(result.0, result.1)),
+                        |result| {
+                            Ok(Self::_map_profile_to_profile_response(
+                                result.0.to_string(),
+                                result.1,
+                            ))
+                        },
                     )
             }
         }
@@ -363,7 +440,9 @@ impl Store {
                 ApiErrorType::NotFound,
                 "INVALID TYPE",
                 format!("'{}' is not supported", kind).as_str(),
-                DATA.with(|data| Data::get_name(data)).as_str(),
+                STABLE_DATA
+                    .with(|data| Data::get_name(data.borrow().get()))
+                    .as_str(),
                 "add_starred",
                 inputs,
             ));
@@ -377,10 +456,20 @@ impl Store {
                 // Add the starred identifier to the profile
                 _profile.starred.insert(starred_identifier, kind);
 
-                DATA.with(|data| Data::update_entry(data, _identifier, _profile))
+                STABLE_DATA
+                    .with(|data| {
+                        ENTRIES.with(|entries| {
+                            Data::update_entry(data, entries, _identifier, _profile)
+                        })
+                    })
                     .map_or_else(
                         |err| Err(err),
-                        |result| Ok(Self::_map_profile_to_profile_response(result.0, result.1)),
+                        |result| {
+                            Ok(Self::_map_profile_to_profile_response(
+                                result.0.to_string(),
+                                result.1,
+                            ))
+                        },
                     )
             }
         }
@@ -408,7 +497,9 @@ impl Store {
                         ApiErrorType::NotFound,
                         "STARRED_NOT_FOUND",
                         "Starred identifier not found",
-                        DATA.with(|data| Data::get_name(data)).as_str(),
+                        STABLE_DATA
+                            .with(|data| Data::get_name(data.borrow().get()))
+                            .as_str(),
                         "remove_starred",
                         inputs,
                     ));
@@ -417,10 +508,20 @@ impl Store {
                 // Remove the starred identifier from the profile
                 _profile.starred.remove(&starred_identifier);
                 // Update the profile in the data store
-                DATA.with(|data| Data::update_entry(data, _identifier, _profile))
+                STABLE_DATA
+                    .with(|data| {
+                        ENTRIES.with(|entries| {
+                            Data::update_entry(data, entries, _identifier, _profile)
+                        })
+                    })
                     .map_or_else(
                         |err| Err(err),
-                        |result| Ok(Self::_map_profile_to_profile_response(result.0, result.1)),
+                        |result| {
+                            Ok(Self::_map_profile_to_profile_response(
+                                result.0.to_string(),
+                                result.1,
+                            ))
+                        },
                     )
             }
         }
@@ -472,7 +573,9 @@ impl Store {
                 ApiErrorType::NotFound,
                 "INVALID TYPE",
                 format!("'{}' is not supported", kind).as_str(),
-                DATA.with(|data| Data::get_name(data)).as_str(),
+                STABLE_DATA
+                    .with(|data| Data::get_name(data.borrow().get()))
+                    .as_str(),
                 "add_relation",
                 inputs,
             ));
@@ -490,10 +593,20 @@ impl Store {
                     .insert(relation_identifier, relation_type.to_string());
 
                 // Update the profile in the data store
-                DATA.with(|data| Data::update_entry(data, _identifier, _profile))
+                STABLE_DATA
+                    .with(|data| {
+                        ENTRIES.with(|entries| {
+                            Data::update_entry(data, entries, _identifier, _profile)
+                        })
+                    })
                     .map_or_else(
                         |err| Err(err),
-                        |result| Ok(Self::_map_profile_to_profile_response(result.0, result.1)),
+                        |result| {
+                            Ok(Self::_map_profile_to_profile_response(
+                                result.0.to_string(),
+                                result.1,
+                            ))
+                        },
                     )
             }
         }
@@ -544,7 +657,9 @@ impl Store {
                         ApiErrorType::NotFound,
                         "RELATION_NOT_FOUND",
                         "Relation identifier not found",
-                        DATA.with(|data| Data::get_name(data)).as_str(),
+                        STABLE_DATA
+                            .with(|data| Data::get_name(data.borrow().get()))
+                            .as_str(),
                         "remove_relation",
                         inputs,
                     ));
@@ -552,10 +667,20 @@ impl Store {
                 // Remove the relation from the profile
                 _profile.relations.remove(&relation_identifier);
                 // Update the profile in the data store
-                DATA.with(|data| Data::update_entry(data, _identifier, _profile))
+                STABLE_DATA
+                    .with(|data| {
+                        ENTRIES.with(|entries| {
+                            Data::update_entry(data, entries, _identifier, _profile)
+                        })
+                    })
                     .map_or_else(
                         |err| Err(err),
-                        |result| Ok(Self::_map_profile_to_profile_response(result.0, result.1)),
+                        |result| {
+                            Ok(Self::_map_profile_to_profile_response(
+                                result.0.to_string(),
+                                result.1,
+                            ))
+                        },
                     )
             }
         }
@@ -573,29 +698,33 @@ impl Store {
                 None,
             )),
             // If the profile exists, continue
-            Some((_identifier, profile)) => {
-                Ok(Self::_map_profile_to_profile_response(_identifier, profile))
-            }
+            Some((_identifier, profile)) => Ok(Self::_map_profile_to_profile_response(
+                _identifier.to_string(),
+                profile,
+            )),
         }
     }
 
     // Method to get the profile by an identifier
     pub fn get_profile_by_identifier(identifier: Principal) -> Result<ProfileResponse, ApiError> {
         // get the profile from the data store
-        match DATA.with(|data| Data::get_entry(data, identifier)) {
+        match STABLE_DATA
+            .with(|data| ENTRIES.with(|entries| Data::get_entry(data, entries, identifier)))
+        {
             // If the profile does not exist, return an error
             Err(err) => Err(err),
             // If the profile exists, continue
-            Ok((_identifier, profile)) => {
-                Ok(Self::_map_profile_to_profile_response(_identifier, profile))
-            }
+            Ok((_identifier, profile)) => Ok(Self::_map_profile_to_profile_response(
+                _identifier.to_string(),
+                profile,
+            )),
         }
     }
 
     // Method to get profiles by a list of principals
     pub fn get_profiles_by_user_principal(principals: Vec<Principal>) -> Vec<ProfileResponse> {
         // get the profiles from the data store
-        let fetched_profiles = DATA.with(|data| Data::get_entries(data));
+        let fetched_profiles = ENTRIES.with(|entries| Data::get_entries(entries));
 
         // filter the profiles by the principals passed in
         principals
@@ -620,10 +749,14 @@ impl Store {
         // filter the profiles by the principals passed in
         for identifier in profile_identifiers {
             // get the profile from the data store
-            if let Ok((_identifier, profile)) = DATA.with(|data| Data::get_entry(data, identifier))
+            if let Ok((_identifier, profile)) = STABLE_DATA
+                .with(|data| ENTRIES.with(|entries| Data::get_entry(data, entries, identifier)))
             {
                 // add the profile to the vector
-                profiles.push(Self::_map_profile_to_profile_response(_identifier, profile));
+                profiles.push(Self::_map_profile_to_profile_response(
+                    _identifier.to_string(),
+                    profile,
+                ));
             }
         }
 
@@ -643,7 +776,10 @@ impl Store {
                     approved_date: time(),
                 };
 
-                let _ = DATA.with(|data| Data::update_entry(data, _identifier, _existing));
+                let _ = STABLE_DATA.with(|data| {
+                    ENTRIES
+                        .with(|entries| Data::update_entry(data, entries, _identifier, _existing))
+                });
                 Ok(true)
             }
         }
@@ -659,13 +795,15 @@ impl Store {
         // create a vector to hold the profiles
         let mut profiles: Vec<ProfileResponse> = vec![];
 
-        DATA.with(|data| {
+        STABLE_DATA.with(|data| {
             // filter the profiles by the identifiers passed in
             identifiers.into_iter().for_each(|identifier| {
-                if let Ok((_identifier, _profile)) = Data::get_entry(&data, identifier) {
+                if let Ok((_identifier, _profile)) =
+                    ENTRIES.with(|entries| Data::get_entry(&data, entries, identifier))
+                {
                     // add the profile to the vector
                     profiles.push(Self::_map_profile_to_profile_response(
-                        _identifier,
+                        _identifier.to_string(),
                         _profile,
                     ))
                 };
@@ -688,9 +826,9 @@ impl Store {
     ) -> PagedResponse<ProfileResponse> {
         // create a vector to hold the profiles
         let mut profiles: Vec<ProfileResponse> = vec![];
-        DATA.with(|data| {
+        ENTRIES.with(|entries| {
             // get profiles from the data store
-            let all_profiles = Data::get_entries(data);
+            let all_profiles = Data::get_entries(entries);
             // filter the profiles by the principals passed in
             principals.into_iter().for_each(|p| {
                 if let Some((_identifier, _profile)) =
@@ -712,7 +850,7 @@ impl Store {
         })
     }
 
-    fn _has_user_name(profiles: &Vec<(Principal, Profile)>, username: &String) -> bool {
+    fn _has_user_name(profiles: &Vec<(String, Profile)>, username: &String) -> bool {
         let profile = profiles
             .iter()
             .find(|(_, profile)| &profile.username == username);
@@ -723,7 +861,7 @@ impl Store {
     }
 
     // Method to check if a profile exists by email
-    fn _has_email(profiles: &Vec<(Principal, Profile)>, email: &String) -> bool {
+    fn _has_email(profiles: &Vec<(String, Profile)>, email: &String) -> bool {
         let profile = profiles.iter().find(|(_, profile)| &profile.email == email);
         match profile {
             None => false,
@@ -894,12 +1032,9 @@ impl Store {
     }
 
     // Method to map a profile to a profile response
-    fn _map_profile_to_profile_response(
-        identifier: Principal,
-        profile: Profile,
-    ) -> ProfileResponse {
+    fn _map_profile_to_profile_response(identifier: String, profile: Profile) -> ProfileResponse {
         ProfileResponse {
-            identifier,
+            identifier: Principal::from_text(identifier).unwrap_or(Principal::anonymous()),
             principal: profile.principal,
             username: profile.username,
             display_name: profile.display_name,
@@ -938,10 +1073,18 @@ impl Store {
 
     //  Method to get a profile from a caller
     fn _get_profile_from_caller(caller: Principal) -> Option<(Principal, Profile)> {
-        let profiles = DATA.with(|data| Data::get_entries(data));
-        profiles
+        let profiles = ENTRIES.with(|entries| Data::get_entries(entries));
+        if let Some(reponse) = profiles
             .into_iter()
             .find(|(_identifier, _profile)| _profile.principal == caller)
+        {
+            return Some((
+                Principal::from_text(reponse.0).unwrap_or(Principal::anonymous()),
+                reponse.1,
+            ));
+        } else {
+            return None;
+        }
     }
 
     // default profile_not_found error
@@ -950,7 +1093,9 @@ impl Store {
             ApiErrorType::NotFound,
             "PROFILE_NOT_FOUND",
             "Profile not found",
-            DATA.with(|data| Data::get_name(data)).as_str(),
+            STABLE_DATA
+                .with(|data| Data::get_name(data.borrow().get()))
+                .as_str(),
             method_name,
             inputs,
         )
@@ -964,7 +1109,7 @@ impl Store {
         chunk: usize,
         max_bytes_per_chunk: usize,
     ) -> (Vec<u8>, (usize, usize)) {
-        let profiles = DATA.with(|data| Data::get_entries(data));
+        let profiles = ENTRIES.with(|data| Data::get_entries(data));
         // get profiles for filtering
         let mapped_profiles: Vec<ProfileResponse> = profiles
             .iter()
