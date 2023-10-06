@@ -186,6 +186,7 @@ service : (principal, text, nat64) -> {
       vec ProfileResponse,
     ) query;
   get_relations : (RelationType) -> (vec principal) query;
+  get_relations_count : (principal, RelationType) -> (nat64) query;
   get_starred_events : () -> (vec principal) query;
   get_starred_groups : () -> (vec principal) query;
   get_starred_tasks : () -> (vec principal) query;
