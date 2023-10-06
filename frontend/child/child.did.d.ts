@@ -200,6 +200,7 @@ export interface _SERVICE {
     Array<ProfileResponse>
   >,
   'get_relations' : ActorMethod<[RelationType], Array<Principal>>,
+  'get_relations_count' : ActorMethod<[Principal, RelationType], bigint>,
   'get_starred_events' : ActorMethod<[], Array<Principal>>,
   'get_starred_groups' : ActorMethod<[], Array<Principal>>,
   'get_starred_tasks' : ActorMethod<[], Array<Principal>>,

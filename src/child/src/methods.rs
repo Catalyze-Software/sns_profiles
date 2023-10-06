@@ -146,6 +146,13 @@ pub fn get_relations(relation_type: RelationType) -> Vec<Principal> {
     Store::get_relations(caller(), relation_type)
 }
 
+// This method is used to get relations count of a specific type (Friend or Blocked)
+#[query]
+#[candid_method(query)]
+pub fn get_relations_count(principal: Principal, relation_type: RelationType) -> u64 {
+    Store::get_relations(principal, relation_type).len() as u64
+}
+
 // This method is used to remove a relation from the profile
 #[update]
 #[candid_method(update)]

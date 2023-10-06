@@ -232,6 +232,11 @@ export const idlFactory = ({ IDL }) => {
         [IDL.Vec(IDL.Principal)],
         ['query'],
       ),
+    'get_relations_count' : IDL.Func(
+        [IDL.Principal, RelationType],
+        [IDL.Nat64],
+        ['query'],
+      ),
     'get_starred_events' : IDL.Func([], [IDL.Vec(IDL.Principal)], ['query']),
     'get_starred_groups' : IDL.Func([], [IDL.Vec(IDL.Principal)], ['query']),
     'get_starred_tasks' : IDL.Func([], [IDL.Vec(IDL.Principal)], ['query']),
