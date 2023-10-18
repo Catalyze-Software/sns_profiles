@@ -43,14 +43,14 @@ thread_local! {
         // NEW STABLE
         pub static STABLE_DATA: RefCell<StableCell<Data, Memory>> = RefCell::new(
             StableCell::init(
-                MEMORY_MANAGER.with(|m| m.borrow().get(MemoryId::new(0))),
+                MEMORY_MANAGER.with(|m| m.borrow().get(MemoryId::new(1))),
                 Data::default(),
             ).expect("failed")
         );
 
         pub static ENTRIES: RefCell<StableBTreeMap<String, Profile, Memory>> = RefCell::new(
             StableBTreeMap::init(
-                MEMORY_MANAGER.with(|m| m.borrow().get(MemoryId::new(4))),
+                MEMORY_MANAGER.with(|m| m.borrow().get(MemoryId::new(2))),
             )
         );
 
@@ -225,7 +225,7 @@ impl Store {
             format!("update_profile - {:?}", &update_profile),
         ]);
         // get the profile from the data store
-        STABLE_DATA.with(|data| match Self::_get_profile_from_caller(caller) {
+        match Self::_get_profile_from_caller(caller) {
             // If the profile does not exist, return an error
             None => Err(Self::_profile_not_found_error("update_profile", inputs)),
             // If the profile exists, continue and validate the update_profile method argument
@@ -295,7 +295,7 @@ impl Store {
                     }
                 }
             }
-        })
+        }
     }
 
     pub fn add_wallet(caller: Principal, wallet: PostWallet) -> Result<ProfileResponse, ApiError> {
