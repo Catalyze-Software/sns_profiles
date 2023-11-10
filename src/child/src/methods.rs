@@ -6,7 +6,8 @@ use ic_cdk::{caller, query, update};
 use ic_scalable_misc::enums::api_error_type::ApiError;
 
 use shared::profile_models::{
-    PostProfile, PostWallet, Profile, ProfileFilter, ProfileResponse, RelationType, UpdateProfile,
+    FriendRequestResponse, PostProfile, PostWallet, Profile, ProfileFilter, ProfileResponse,
+    RelationType, UpdateProfile,
 };
 
 use super::store::{Store, DATA};
@@ -113,13 +114,42 @@ pub fn get_starred_groups() -> Vec<Principal> {
     Store::get_starred(caller(), "grp".to_string())
 }
 
-// This method adds a relation to the profile (Friend or Blocked)
 #[update]
-pub fn add_relation(
-    identifier: Principal,
-    relation_type: RelationType,
-) -> Result<ProfileResponse, ApiError> {
-    Store::add_relation(caller(), relation_type, identifier)
+pub fn add_friend_request(
+    principal: Principal,
+    message: String,
+) -> Result<FriendRequestResponse, ApiError> {
+    Store::add_friend_request(caller(), principal, message)
+}
+
+#[update]
+pub fn remove_friend(principal: Principal) -> Result<bool, String> {
+    Store::remove_friend(caller(), principal)
+}
+
+#[update]
+pub fn remove_friend_request(principal: Principal, id: u64) -> Result<bool, String> {
+    Store::remove_friend_request(principal, id)
+}
+
+#[query]
+pub fn get_friend_requests(principal: Principal) -> Vec<FriendRequestResponse> {
+    Store::get_friend_requests(principal)
+}
+
+#[update]
+pub fn decline_friend_request(principal: Principal, id: u64) -> Result<bool, String> {
+    Store::decline_friend_request(principal, id)
+}
+
+#[update]
+pub fn unblock_user(principal: Principal) -> Result<ProfileResponse, ApiError> {
+    Store::unblock_user(caller(), principal)
+}
+
+#[update]
+pub fn block_user(principal: Principal) -> Result<ProfileResponse, ApiError> {
+    Store::block_user(caller(), principal)
 }
 
 // This method is used to get all relations of a specific type (Friend or Blocked)
@@ -134,7 +164,7 @@ pub fn get_relations_count(principal: Principal, relation_type: RelationType) ->
     Store::get_relations(principal, relation_type).len() as u64
 }
 
-// This method is used to remove a relation from the profile
+// // This method is used to remove a relation from the profile
 #[update]
 pub fn remove_relation(identifier: Principal) -> Result<ProfileResponse, ApiError> {
     Store::remove_relation(caller(), identifier)
