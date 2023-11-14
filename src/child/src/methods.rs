@@ -146,6 +146,12 @@ pub fn remove_friend(principal: Principal) -> Result<bool, String> {
 
 #[update]
 #[candid_method(update)]
+pub fn accept_friend_request(principal: Principal, id: u64) -> Result<bool, String> {
+    Store::accept_friend_request(principal, id)
+}
+
+#[update]
+#[candid_method(update)]
 pub fn remove_friend_request(principal: Principal, id: u64) -> Result<bool, String> {
     Store::remove_friend_request(principal, id)
 }
@@ -186,13 +192,6 @@ pub fn get_relations(relation_type: RelationType) -> Vec<Principal> {
 #[candid_method(query)]
 pub fn get_relations_count(principal: Principal, relation_type: RelationType) -> u64 {
     Store::get_relations(principal, relation_type).len() as u64
-}
-
-// // This method is used to remove a relation from the profile
-#[update]
-#[candid_method(update)]
-pub fn remove_relation(identifier: Principal) -> Result<ProfileResponse, ApiError> {
-    Store::remove_relation(caller(), identifier)
 }
 
 // This method is used to approve the code of conduct for the specific caller
