@@ -226,3 +226,20 @@ pub enum ProfileFilter {
     Cause(u32),
     CreatedOn(DateRange),
 }
+
+#[derive(CandidType, Deserialize, Clone, Debug)]
+pub struct FriendRequest {
+    pub requested_by: Principal,
+    pub message: String,
+    pub to: Principal,
+    pub created_at: u64,
+}
+
+#[derive(CandidType, Deserialize, Clone, Debug)]
+pub struct FriendRequestResponse {
+    pub id: u64,
+    pub requested_by: Principal,
+    pub message: String,
+    pub to: Principal,
+    pub created_at: u64,
+}
