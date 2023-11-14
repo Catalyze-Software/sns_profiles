@@ -1,4 +1,5 @@
 export const idlFactory = ({ IDL }) => {
+  const Result = IDL.Variant({ 'Ok' : IDL.Bool, 'Err' : IDL.Text });
   const ErrorMessage = IDL.Record({
     'tag' : IDL.Text,
     'message' : IDL.Text,
@@ -24,7 +25,7 @@ export const idlFactory = ({ IDL }) => {
     'Unexpected' : ErrorMessage,
     'BadRequest' : ErrorMessage,
   });
-  const Result = IDL.Variant({ 'Ok' : IDL.Null, 'Err' : ApiError });
+  const Result_1 = IDL.Variant({ 'Ok' : IDL.Null, 'Err' : ApiError });
   const FriendRequestResponse = IDL.Record({
     'id' : IDL.Nat64,
     'to' : IDL.Principal,
@@ -32,7 +33,7 @@ export const idlFactory = ({ IDL }) => {
     'requested_by' : IDL.Principal,
     'message' : IDL.Text,
   });
-  const Result_1 = IDL.Variant({
+  const Result_2 = IDL.Variant({
     'Ok' : FriendRequestResponse,
     'Err' : ApiError,
   });
@@ -112,13 +113,12 @@ export const idlFactory = ({ IDL }) => {
     'skills' : IDL.Vec(IDL.Nat32),
     'application_role' : ApplicationRole,
   });
-  const Result_2 = IDL.Variant({ 'Ok' : ProfileResponse, 'Err' : ApiError });
+  const Result_3 = IDL.Variant({ 'Ok' : ProfileResponse, 'Err' : ApiError });
   const PostWallet = IDL.Record({
     'principal' : IDL.Principal,
     'provider' : IDL.Text,
   });
-  const Result_3 = IDL.Variant({ 'Ok' : IDL.Bool, 'Err' : ApiError });
-  const Result_4 = IDL.Variant({ 'Ok' : IDL.Bool, 'Err' : IDL.Text });
+  const Result_4 = IDL.Variant({ 'Ok' : IDL.Bool, 'Err' : ApiError });
   const UpdateProfile = IDL.Record({
     'profile_image' : Asset,
     'banner_image' : Asset,
@@ -207,19 +207,24 @@ export const idlFactory = ({ IDL }) => {
   return IDL.Service({
     '__get_candid_interface_tmp_hack' : IDL.Func([], [IDL.Text], ['query']),
     'accept_cycles' : IDL.Func([], [IDL.Nat64], []),
-    'add_entry_by_parent' : IDL.Func([IDL.Vec(IDL.Nat8)], [Result], []),
-    'add_friend_request' : IDL.Func([IDL.Principal, IDL.Text], [Result_1], []),
-    'add_profile' : IDL.Func([PostProfile, IDL.Principal], [Result_2], []),
-    'add_starred' : IDL.Func([IDL.Principal], [Result_2], []),
-    'add_wallet' : IDL.Func([PostWallet], [Result_2], []),
-    'approve_code_of_conduct' : IDL.Func([IDL.Nat64], [Result_3], []),
-    'block_user' : IDL.Func([IDL.Principal], [Result_2], []),
-    'decline_friend_request' : IDL.Func(
+    'accept_friend_request' : IDL.Func(
         [IDL.Principal, IDL.Nat64],
-        [Result_4],
+        [Result],
         [],
       ),
-    'edit_profile' : IDL.Func([UpdateProfile], [Result_2], []),
+    'add_entry_by_parent' : IDL.Func([IDL.Vec(IDL.Nat8)], [Result_1], []),
+    'add_friend_request' : IDL.Func([IDL.Principal, IDL.Text], [Result_2], []),
+    'add_profile' : IDL.Func([PostProfile, IDL.Principal], [Result_3], []),
+    'add_starred' : IDL.Func([IDL.Principal], [Result_3], []),
+    'add_wallet' : IDL.Func([PostWallet], [Result_3], []),
+    'approve_code_of_conduct' : IDL.Func([IDL.Nat64], [Result_4], []),
+    'block_user' : IDL.Func([IDL.Principal], [Result_3], []),
+    'decline_friend_request' : IDL.Func(
+        [IDL.Principal, IDL.Nat64],
+        [Result],
+        [],
+      ),
+    'edit_profile' : IDL.Func([UpdateProfile], [Result_3], []),
     'get_chunked_data' : IDL.Func(
         [IDL.Vec(ProfileFilter), IDL.Nat64, IDL.Nat64],
         [IDL.Vec(IDL.Nat8), IDL.Tuple(IDL.Nat64, IDL.Nat64)],
@@ -232,12 +237,12 @@ export const idlFactory = ({ IDL }) => {
       ),
     'get_profile_by_identifier' : IDL.Func(
         [IDL.Principal],
-        [Result_2],
+        [Result_3],
         ['query'],
       ),
     'get_profile_by_user_principal' : IDL.Func(
         [IDL.Principal],
-        [Result_2],
+        [Result_3],
         ['query'],
       ),
     'get_profiles_by_identifier' : IDL.Func(
@@ -269,17 +274,16 @@ export const idlFactory = ({ IDL }) => {
         [],
         [],
       ),
-    'remove_friend' : IDL.Func([IDL.Principal], [Result_4], []),
+    'remove_friend' : IDL.Func([IDL.Principal], [Result], []),
     'remove_friend_request' : IDL.Func(
         [IDL.Principal, IDL.Nat64],
-        [Result_4],
+        [Result],
         [],
       ),
-    'remove_relation' : IDL.Func([IDL.Principal], [Result_2], []),
-    'remove_starred' : IDL.Func([IDL.Principal], [Result_2], []),
-    'remove_wallet' : IDL.Func([IDL.Principal], [Result_2], []),
+    'remove_starred' : IDL.Func([IDL.Principal], [Result_3], []),
+    'remove_wallet' : IDL.Func([IDL.Principal], [Result_3], []),
     'set_wallet_as_primary' : IDL.Func([IDL.Principal], [Result_5], []),
-    'unblock_user' : IDL.Func([IDL.Principal], [Result_2], []),
+    'unblock_user' : IDL.Func([IDL.Principal], [Result_3], []),
   });
 };
 export const init = ({ IDL }) => {

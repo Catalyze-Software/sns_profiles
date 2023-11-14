@@ -451,56 +451,6 @@ impl Store {
         return vec![];
     }
 
-    // Method to add a relation to a profile
-    pub fn add_relation(
-        caller: Principal,
-        relation_type: RelationType,
-        relation_identifier: Principal,
-    ) -> Result<ProfileResponse, ApiError> {
-        let inputs = Some(vec![
-            format!("principal - {:?}", &caller.to_string()),
-            format!("relation_type - {:?}", &relation_type.to_string()),
-            format!(
-                "relation_identifier - {:?}",
-                &relation_identifier.to_string()
-            ),
-        ]);
-
-        // decode the identifier
-        let (_, _, kind) = Identifier::decode(&relation_identifier);
-        // check if the identifier is valid to use as a relation identifier
-        if &kind != &IDENTIFIER_KIND.to_string() {
-            return Err(api_error(
-                ApiErrorType::NotFound,
-                "INVALID TYPE",
-                format!("'{}' is not supported", kind).as_str(),
-                DATA.with(|data| Data::get_name(data)).as_str(),
-                "add_relation",
-                inputs,
-            ));
-        }
-
-        // get the profile from the data store
-        match Self::_get_profile_from_caller(caller) {
-            // If the profile does not exist, return an error
-            None => Err(Self::_profile_not_found_error("add_relation", inputs)),
-            // If the profile exists, continue
-            Some((_identifier, mut _profile)) => {
-                // Add the relation to the profile, if existing it will be overwritten
-                _profile
-                    .relations
-                    .insert(relation_identifier, relation_type.to_string());
-
-                // Update the profile in the data store
-                DATA.with(|data| Data::update_entry(data, _identifier, _profile))
-                    .map_or_else(
-                        |err| Err(err),
-                        |result| Ok(Self::_map_profile_to_profile_response(result.0, result.1)),
-                    )
-            }
-        }
-    }
-
     // Method to get the relations of a profile by type
     pub fn get_relations(caller: Principal, relation_type: RelationType) -> Vec<Principal> {
         // get the profile from the data store
@@ -522,45 +472,6 @@ impl Store {
             return relations;
         };
         return vec![];
-    }
-
-    // Method to remove a relation from a profile
-    pub fn remove_relation(
-        caller: Principal,
-        relation_identifier: Principal,
-    ) -> Result<ProfileResponse, ApiError> {
-        let inputs = Some(vec![
-            format!("principal - {:?}", &caller),
-            format!("relation_identifier - {:?}", &relation_identifier),
-        ]);
-
-        // get the profile from the data store
-        match Self::_get_profile_from_caller(caller) {
-            // If the profile does not exist, return an error
-            None => Err(Self::_profile_not_found_error("remove_relation", inputs)),
-            // If the profile exists, continue
-            Some((_identifier, mut _profile)) => {
-                // Check if the relation exists
-                if let None = _profile.relations.get(&relation_identifier) {
-                    return Err(api_error(
-                        ApiErrorType::NotFound,
-                        "RELATION_NOT_FOUND",
-                        "Relation identifier not found",
-                        DATA.with(|data| Data::get_name(data)).as_str(),
-                        "remove_relation",
-                        inputs,
-                    ));
-                }
-                // Remove the relation from the profile
-                _profile.relations.remove(&relation_identifier);
-                // Update the profile in the data store
-                DATA.with(|data| Data::update_entry(data, _identifier, _profile))
-                    .map_or_else(
-                        |err| Err(err),
-                        |result| Ok(Self::_map_profile_to_profile_response(result.0, result.1)),
-                    )
-            }
-        }
     }
 
     // Method to get the profile of the caller

@@ -144,16 +144,16 @@ export interface ProfileResponse {
 }
 export type RelationType = { 'Blocked' : null } |
   { 'Friend' : null };
-export type Result = { 'Ok' : null } |
+export type Result = { 'Ok' : boolean } |
+  { 'Err' : string };
+export type Result_1 = { 'Ok' : null } |
   { 'Err' : ApiError };
-export type Result_1 = { 'Ok' : FriendRequestResponse } |
+export type Result_2 = { 'Ok' : FriendRequestResponse } |
   { 'Err' : ApiError };
-export type Result_2 = { 'Ok' : ProfileResponse } |
-  { 'Err' : ApiError };
-export type Result_3 = { 'Ok' : boolean } |
+export type Result_3 = { 'Ok' : ProfileResponse } |
   { 'Err' : ApiError };
 export type Result_4 = { 'Ok' : boolean } |
-  { 'Err' : string };
+  { 'Err' : ApiError };
 export type Result_5 = { 'Ok' : null } |
   { 'Err' : null };
 export interface UpdateMessage {
@@ -189,15 +189,16 @@ export interface WalletResponse {
 export interface _SERVICE {
   '__get_candid_interface_tmp_hack' : ActorMethod<[], string>,
   'accept_cycles' : ActorMethod<[], bigint>,
-  'add_entry_by_parent' : ActorMethod<[Uint8Array | number[]], Result>,
-  'add_friend_request' : ActorMethod<[Principal, string], Result_1>,
-  'add_profile' : ActorMethod<[PostProfile, Principal], Result_2>,
-  'add_starred' : ActorMethod<[Principal], Result_2>,
-  'add_wallet' : ActorMethod<[PostWallet], Result_2>,
-  'approve_code_of_conduct' : ActorMethod<[bigint], Result_3>,
-  'block_user' : ActorMethod<[Principal], Result_2>,
-  'decline_friend_request' : ActorMethod<[Principal, bigint], Result_4>,
-  'edit_profile' : ActorMethod<[UpdateProfile], Result_2>,
+  'accept_friend_request' : ActorMethod<[Principal, bigint], Result>,
+  'add_entry_by_parent' : ActorMethod<[Uint8Array | number[]], Result_1>,
+  'add_friend_request' : ActorMethod<[Principal, string], Result_2>,
+  'add_profile' : ActorMethod<[PostProfile, Principal], Result_3>,
+  'add_starred' : ActorMethod<[Principal], Result_3>,
+  'add_wallet' : ActorMethod<[PostWallet], Result_3>,
+  'approve_code_of_conduct' : ActorMethod<[bigint], Result_4>,
+  'block_user' : ActorMethod<[Principal], Result_3>,
+  'decline_friend_request' : ActorMethod<[Principal, bigint], Result>,
+  'edit_profile' : ActorMethod<[UpdateProfile], Result_3>,
   'get_chunked_data' : ActorMethod<
     [Array<ProfileFilter>, bigint, bigint],
     [Uint8Array | number[], [bigint, bigint]]
@@ -206,8 +207,8 @@ export interface _SERVICE {
     [Principal],
     Array<FriendRequestResponse>
   >,
-  'get_profile_by_identifier' : ActorMethod<[Principal], Result_2>,
-  'get_profile_by_user_principal' : ActorMethod<[Principal], Result_2>,
+  'get_profile_by_identifier' : ActorMethod<[Principal], Result_3>,
+  'get_profile_by_user_principal' : ActorMethod<[Principal], Result_3>,
   'get_profiles_by_identifier' : ActorMethod<
     [Array<Principal>],
     Array<ProfileResponse>
@@ -226,11 +227,10 @@ export interface _SERVICE {
     [Array<[Principal, Profile]>],
     undefined
   >,
-  'remove_friend' : ActorMethod<[Principal], Result_4>,
-  'remove_friend_request' : ActorMethod<[Principal, bigint], Result_4>,
-  'remove_relation' : ActorMethod<[Principal], Result_2>,
-  'remove_starred' : ActorMethod<[Principal], Result_2>,
-  'remove_wallet' : ActorMethod<[Principal], Result_2>,
+  'remove_friend' : ActorMethod<[Principal], Result>,
+  'remove_friend_request' : ActorMethod<[Principal, bigint], Result>,
+  'remove_starred' : ActorMethod<[Principal], Result_3>,
+  'remove_wallet' : ActorMethod<[Principal], Result_3>,
   'set_wallet_as_primary' : ActorMethod<[Principal], Result_5>,
-  'unblock_user' : ActorMethod<[Principal], Result_2>,
+  'unblock_user' : ActorMethod<[Principal], Result_3>,
 }
