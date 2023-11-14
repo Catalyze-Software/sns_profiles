@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 
 use candid::Principal;
 use ic_cdk::api::{call, time};
@@ -18,8 +18,9 @@ use ic_scalable_misc::{
 };
 
 use shared::profile_models::{
-    CodeOfConductDetails, PostProfile, PostWallet, Profile, ProfileFilter, ProfileResponse,
-    ProfileSort, RelationType, UpdateProfile, Wallet, WalletResponse,
+    CodeOfConductDetails, FriendRequest, FriendRequestResponse, PostProfile, PostWallet, Profile,
+    ProfileFilter, ProfileResponse, ProfileSort, RelationType, UpdateProfile, Wallet,
+    WalletResponse,
 };
 
 use std::cell::RefCell;
@@ -30,6 +31,7 @@ use super::validation::{validate_post_profile, validate_update_profile};
 
 thread_local! {
     pub static DATA: RefCell<Data<Profile>> = RefCell::new(Data::default());
+    pub static FRIEND_REQUEST: RefCell<BTreeMap<u64, FriendRequest>> = RefCell::new(Default::default());
 }
 
 pub struct Store;
@@ -449,56 +451,6 @@ impl Store {
         return vec![];
     }
 
-    // Method to add a relation to a profile
-    pub fn add_relation(
-        caller: Principal,
-        relation_type: RelationType,
-        relation_identifier: Principal,
-    ) -> Result<ProfileResponse, ApiError> {
-        let inputs = Some(vec![
-            format!("principal - {:?}", &caller.to_string()),
-            format!("relation_type - {:?}", &relation_type.to_string()),
-            format!(
-                "relation_identifier - {:?}",
-                &relation_identifier.to_string()
-            ),
-        ]);
-
-        // decode the identifier
-        let (_, _, kind) = Identifier::decode(&relation_identifier);
-        // check if the identifier is valid to use as a relation identifier
-        if &kind != &IDENTIFIER_KIND.to_string() {
-            return Err(api_error(
-                ApiErrorType::NotFound,
-                "INVALID TYPE",
-                format!("'{}' is not supported", kind).as_str(),
-                DATA.with(|data| Data::get_name(data)).as_str(),
-                "add_relation",
-                inputs,
-            ));
-        }
-
-        // get the profile from the data store
-        match Self::_get_profile_from_caller(caller) {
-            // If the profile does not exist, return an error
-            None => Err(Self::_profile_not_found_error("add_relation", inputs)),
-            // If the profile exists, continue
-            Some((_identifier, mut _profile)) => {
-                // Add the relation to the profile, if existing it will be overwritten
-                _profile
-                    .relations
-                    .insert(relation_identifier, relation_type.to_string());
-
-                // Update the profile in the data store
-                DATA.with(|data| Data::update_entry(data, _identifier, _profile))
-                    .map_or_else(
-                        |err| Err(err),
-                        |result| Ok(Self::_map_profile_to_profile_response(result.0, result.1)),
-                    )
-            }
-        }
-    }
-
     // Method to get the relations of a profile by type
     pub fn get_relations(caller: Principal, relation_type: RelationType) -> Vec<Principal> {
         // get the profile from the data store
@@ -520,45 +472,6 @@ impl Store {
             return relations;
         };
         return vec![];
-    }
-
-    // Method to remove a relation from a profile
-    pub fn remove_relation(
-        caller: Principal,
-        relation_identifier: Principal,
-    ) -> Result<ProfileResponse, ApiError> {
-        let inputs = Some(vec![
-            format!("principal - {:?}", &caller),
-            format!("relation_identifier - {:?}", &relation_identifier),
-        ]);
-
-        // get the profile from the data store
-        match Self::_get_profile_from_caller(caller) {
-            // If the profile does not exist, return an error
-            None => Err(Self::_profile_not_found_error("remove_relation", inputs)),
-            // If the profile exists, continue
-            Some((_identifier, mut _profile)) => {
-                // Check if the relation exists
-                if let None = _profile.relations.get(&relation_identifier) {
-                    return Err(api_error(
-                        ApiErrorType::NotFound,
-                        "RELATION_NOT_FOUND",
-                        "Relation identifier not found",
-                        DATA.with(|data| Data::get_name(data)).as_str(),
-                        "remove_relation",
-                        inputs,
-                    ));
-                }
-                // Remove the relation from the profile
-                _profile.relations.remove(&relation_identifier);
-                // Update the profile in the data store
-                DATA.with(|data| Data::update_entry(data, _identifier, _profile))
-                    .map_or_else(
-                        |err| Err(err),
-                        |result| Ok(Self::_map_profile_to_profile_response(result.0, result.1)),
-                    )
-            }
-        }
     }
 
     // Method to get the profile of the caller
@@ -1003,6 +916,240 @@ impl Store {
         } else {
             // if the profiles cant be serialized return an empty vec and start and end chunk index as 0
             return (vec![], (0, 0));
+        }
+    }
+
+    pub fn add_friend_request(
+        requested_by: Principal,
+        to: Principal,
+        message: String,
+    ) -> Result<FriendRequestResponse, ApiError> {
+        FRIEND_REQUEST.with(|r| {
+            let requests = r.borrow();
+
+            // If the requester puts out a second friend request for the user
+            if requests
+                .iter()
+                .any(|(_, r)| r.requested_by == requested_by && r.to == to)
+            {
+                return Err(api_error(
+                    ApiErrorType::BadRequest,
+                    "ALREADY_REQUESTED",
+                    "You already sent a friend request to this user",
+                    DATA.with(|data| Data::get_name(data)).as_str(),
+                    "friend_request",
+                    None,
+                ));
+            }
+
+            // if the "to" has already sent a request to the "requested_by"
+            if requests
+                .iter()
+                .any(|(_, r)| r.requested_by == to && r.to == requested_by)
+            {
+                return Err(api_error(
+                    ApiErrorType::BadRequest,
+                    "PENDING_REQUEST",
+                    "The invites user already send you a friend request",
+                    DATA.with(|data| Data::get_name(data)).as_str(),
+                    "friend_request",
+                    None,
+                ));
+            }
+
+            let id = requests.last_key_value().map(|(k, _)| k + 1).unwrap_or(0);
+
+            let request = FriendRequest {
+                requested_by,
+                message,
+                to,
+                created_at: time(),
+            };
+
+            r.borrow_mut().insert(id.clone(), request.clone());
+            Ok(FriendRequestResponse {
+                id,
+                requested_by,
+                message: request.message.clone(),
+                to,
+                created_at: request.created_at,
+            })
+        })
+    }
+
+    pub fn get_friend_requests(caller: Principal) -> Vec<FriendRequestResponse> {
+        FRIEND_REQUEST.with(|r| {
+            let requests = r.borrow();
+
+            requests
+                .iter()
+                .filter(|(_, r)| r.requested_by == caller || r.to == caller)
+                .map(|(k, v)| FriendRequestResponse {
+                    id: k.clone(),
+                    requested_by: v.requested_by,
+                    message: v.message.clone(),
+                    to: v.to,
+                    created_at: v.created_at,
+                })
+                .collect()
+        })
+    }
+
+    pub fn accept_friend_request(caller: Principal, id: u64) -> Result<bool, String> {
+        FRIEND_REQUEST.with(|r| {
+            let requests = r.borrow();
+
+            if let Some(request) = requests.get(&id) {
+                if request.to == caller {
+                    let profiles = DATA.with(|data| Data::get_entries(data));
+
+                    let caller_profile = &profiles
+                        .iter()
+                        .find(|(_, p)| p.principal == caller)
+                        .unwrap()
+                        .1;
+
+                    caller_profile
+                        .clone()
+                        .relations
+                        .insert(request.requested_by, RelationType::Friend.to_string());
+
+                    let to_profile = &profiles
+                        .iter()
+                        .find(|(_, p)| p.principal == request.to)
+                        .unwrap()
+                        .1;
+
+                    to_profile
+                        .clone()
+                        .relations
+                        .insert(request.to, RelationType::Friend.to_string());
+
+                    let _ = DATA.with(|data| {
+                        let _ = Data::update_entry(data, caller, caller_profile.clone());
+                        let _ = Data::update_entry(data, caller, to_profile.clone());
+                    });
+                }
+                r.borrow_mut().remove(&id);
+                return Ok(true);
+            }
+
+            Err("Request not found".to_string())
+        })
+    }
+
+    pub fn remove_friend(caller: Principal, to_remove: Principal) -> Result<bool, String> {
+        let profiles = DATA.with(|data| Data::get_entries(data));
+
+        let caller_profile = &profiles
+            .iter()
+            .find(|(_, p)| p.principal == caller)
+            .unwrap()
+            .1;
+
+        caller_profile.clone().relations.remove(&to_remove);
+
+        let to_remove_profile = &profiles
+            .iter()
+            .find(|(_, p)| p.principal == to_remove)
+            .unwrap()
+            .1;
+
+        to_remove_profile.clone().relations.remove(&caller);
+
+        let _ = DATA.with(|data| {
+            let _ = Data::update_entry(data, caller, caller_profile.clone());
+            let _ = Data::update_entry(data, caller, to_remove_profile.clone());
+        });
+
+        Ok(true)
+    }
+
+    pub fn decline_friend_request(caller: Principal, id: u64) -> Result<bool, String> {
+        FRIEND_REQUEST.with(|r| {
+            let requests = r.borrow();
+
+            if let Some(request) = requests.get(&id) {
+                if request.to == caller {
+                    r.borrow_mut().remove(&id);
+                    return Ok(true);
+                }
+            }
+
+            Err("Request not found".to_string())
+        })
+    }
+
+    pub fn remove_friend_request(caller: Principal, id: u64) -> Result<bool, String> {
+        FRIEND_REQUEST.with(|r| {
+            let requests = r.borrow();
+
+            if let Some(request) = requests.get(&id) {
+                if request.requested_by == caller {
+                    r.borrow_mut().remove(&id);
+                    return Ok(true);
+                }
+            }
+
+            Err("Request not found".to_string())
+        })
+    }
+
+    pub fn block_user(
+        caller: Principal,
+        to_unblock: Principal,
+    ) -> Result<ProfileResponse, ApiError> {
+        let inputs = Some(vec![
+            format!("principal - {:?}", &caller.to_string()),
+            format!("relation_identifier - {:?}", &to_unblock.to_string()),
+        ]);
+
+        // get the profile from the data store
+        match Self::_get_profile_from_caller(caller) {
+            // If the profile does not exist, return an error
+            None => Err(Self::_profile_not_found_error("block_user", inputs)),
+            // If the profile exists, continue
+            Some((_identifier, mut _profile)) => {
+                // Add the relation to the profile, if existing it will be overwritten
+                _profile
+                    .relations
+                    .insert(to_unblock, RelationType::Blocked.to_string());
+
+                // Update the profile in the data store
+                DATA.with(|data| Data::update_entry(data, _identifier, _profile))
+                    .map_or_else(
+                        |err| Err(err),
+                        |result| Ok(Self::_map_profile_to_profile_response(result.0, result.1)),
+                    )
+            }
+        }
+    }
+
+    pub fn unblock_user(
+        caller: Principal,
+        to_unblock: Principal,
+    ) -> Result<ProfileResponse, ApiError> {
+        let inputs = Some(vec![
+            format!("principal - {:?}", &caller.to_string()),
+            format!("relation_identifier - {:?}", &to_unblock.to_string()),
+        ]);
+
+        // get the profile from the data store
+        match Self::_get_profile_from_caller(caller) {
+            // If the profile does not exist, return an error
+            None => Err(Self::_profile_not_found_error("block_user", inputs)),
+            // If the profile exists, continue
+            Some((_identifier, mut _profile)) => {
+                // Add the relation to the profile, if existing it will be overwritten
+                _profile.relations.remove(&to_unblock);
+
+                // Update the profile in the data store
+                DATA.with(|data| Data::update_entry(data, _identifier, _profile))
+                    .map_or_else(
+                        |err| Err(err),
+                        |result| Ok(Self::_map_profile_to_profile_response(result.0, result.1)),
+                    )
+            }
         }
     }
 }
