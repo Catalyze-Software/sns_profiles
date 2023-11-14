@@ -983,7 +983,7 @@ impl Store {
 
             requests
                 .iter()
-                .filter(|(_, r)| r.requested_by == caller)
+                .filter(|(_, r)| r.requested_by == caller || r.to == caller)
                 .map(|(k, v)| FriendRequestResponse {
                     id: k.clone(),
                     requested_by: v.requested_by,
