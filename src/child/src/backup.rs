@@ -8,7 +8,7 @@ use shared::profile_models::Profile;
 use std::cell::RefCell;
 
 const CHUNK_SIZE: u64 = 1 * 1024 * 1024;
-const BACKUP_CANISTER: &str = "br5f7-7uaaa-aaaaa-qaaca-cai";
+const BACKUP_CANISTER: &str = "iqqqg-mqaaa-aaaap-abrnq-cai";
 
 #[derive(Default, Clone)]
 pub struct Backup {

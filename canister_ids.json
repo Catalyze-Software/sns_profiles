@@ -1,12 +1,15 @@
 {
+  "backup": {
+    "development": "iqqqg-mqaaa-aaaap-abrnq-cai"
+  },
   "child": {
+    "development": "crorp-uaaaa-aaaap-abqwq-cai",
     "ic": "aaaaa-aa",
-    "staging": "aaaaa-aa",
-    "development": "aaaaa-aa"
+    "staging": "aaaaa-aa"
   },
   "parent": {
+    "development": "cwpx3-zyaaa-aaaap-abqwa-cai",
     "ic": "7f7w5-3aaaa-aaaap-abghq-cai",
-    "staging": "7f7w5-3aaaa-aaaap-abghq-cai",
-    "development": "cwpx3-zyaaa-aaaap-abqwa-cai"
+    "staging": "7f7w5-3aaaa-aaaap-abghq-cai"
   }
 }

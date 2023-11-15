@@ -11,6 +11,10 @@
       "package": "parent",
       "candid": "candid/parent.did",
       "wasm": "wasm/parent.wasm.gz"
+    },
+    "backup": {
+      "type": "motoko",
+      "main": "src/backup/main.mo"
     }
   },
   "networks": {
