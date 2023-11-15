@@ -207,11 +207,7 @@ export const idlFactory = ({ IDL }) => {
   return IDL.Service({
     '__get_candid_interface_tmp_hack' : IDL.Func([], [IDL.Text], ['query']),
     'accept_cycles' : IDL.Func([], [IDL.Nat64], []),
-    'accept_friend_request' : IDL.Func(
-        [IDL.Principal, IDL.Nat64],
-        [Result],
-        [],
-      ),
+    'accept_friend_request' : IDL.Func([IDL.Nat64], [Result], []),
     'add_entry_by_parent' : IDL.Func([IDL.Vec(IDL.Nat8)], [Result_1], []),
     'add_friend_request' : IDL.Func([IDL.Principal, IDL.Text], [Result_2], []),
     'add_profile' : IDL.Func([PostProfile, IDL.Principal], [Result_3], []),
@@ -219,6 +215,7 @@ export const idlFactory = ({ IDL }) => {
     'add_wallet' : IDL.Func([PostWallet], [Result_3], []),
     'approve_code_of_conduct' : IDL.Func([IDL.Nat64], [Result_4], []),
     'block_user' : IDL.Func([IDL.Principal], [Result_3], []),
+    'clear_relations' : IDL.Func([IDL.Text], [IDL.Bool], []),
     'decline_friend_request' : IDL.Func(
         [IDL.Principal, IDL.Nat64],
         [Result],
@@ -231,7 +228,7 @@ export const idlFactory = ({ IDL }) => {
         ['query'],
       ),
     'get_friend_requests' : IDL.Func(
-        [IDL.Principal],
+        [],
         [IDL.Vec(FriendRequestResponse)],
         ['query'],
       ),
