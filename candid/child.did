@@ -177,7 +177,7 @@ type WalletResponse = record {
 service : (principal, text, nat64) -> {
   __get_candid_interface_tmp_hack : () -> (text) query;
   accept_cycles : () -> (nat64);
-  accept_friend_request : (principal, nat64) -> (Result);
+  accept_friend_request : (nat64) -> (Result);
   add_entry_by_parent : (vec nat8) -> (Result_1);
   add_friend_request : (principal, text) -> (Result_2);
   add_profile : (PostProfile, principal) -> (Result_3);
@@ -185,13 +185,14 @@ service : (principal, text, nat64) -> {
   add_wallet : (PostWallet) -> (Result_3);
   approve_code_of_conduct : (nat64) -> (Result_4);
   block_user : (principal) -> (Result_3);
+  clear_relations : (text) -> (bool);
   decline_friend_request : (principal, nat64) -> (Result);
   edit_profile : (UpdateProfile) -> (Result_3);
   get_chunked_data : (vec ProfileFilter, nat64, nat64) -> (
       vec nat8,
       record { nat64; nat64 },
     ) query;
-  get_friend_requests : (principal) -> (vec FriendRequestResponse) query;
+  get_friend_requests : () -> (vec FriendRequestResponse) query;
   get_profile_by_identifier : (principal) -> (Result_3) query;
   get_profile_by_user_principal : (principal) -> (Result_3) query;
   get_profiles_by_identifier : (vec principal) -> (vec ProfileResponse) query;

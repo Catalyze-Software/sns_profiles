@@ -146,8 +146,8 @@ pub fn remove_friend(principal: Principal) -> Result<bool, String> {
 
 #[update]
 #[candid_method(update)]
-pub fn accept_friend_request(principal: Principal, id: u64) -> Result<bool, String> {
-    Store::accept_friend_request(principal, id)
+pub fn accept_friend_request(id: u64) -> Result<bool, String> {
+    Store::accept_friend_request(caller(), id)
 }
 
 #[update]
@@ -158,8 +158,8 @@ pub fn remove_friend_request(principal: Principal, id: u64) -> Result<bool, Stri
 
 #[query]
 #[candid_method(query)]
-pub fn get_friend_requests(principal: Principal) -> Vec<FriendRequestResponse> {
-    Store::get_friend_requests(principal)
+pub fn get_friend_requests() -> Vec<FriendRequestResponse> {
+    Store::get_friend_requests(caller())
 }
 
 #[update]
@@ -192,6 +192,16 @@ pub fn get_relations(relation_type: RelationType) -> Vec<Principal> {
 #[candid_method(query)]
 pub fn get_relations_count(principal: Principal, relation_type: RelationType) -> u64 {
     Store::get_relations(principal, relation_type).len() as u64
+}
+
+#[update]
+#[candid_method(update)]
+pub fn clear_relations(code: String) -> bool {
+    if code != "i_know_what_i_am_doing" {
+        return false;
+    } else {
+        return Store::clear_relations(caller());
+    }
 }
 
 // This method is used to approve the code of conduct for the specific caller
