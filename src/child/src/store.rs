@@ -25,6 +25,7 @@ use shared::profile_models::{
 
 use std::cell::RefCell;
 
+use crate::backup::Backup;
 use crate::IDENTIFIER_KIND;
 
 use super::validation::{validate_post_profile, validate_update_profile};
@@ -32,6 +33,7 @@ use super::validation::{validate_post_profile, validate_update_profile};
 thread_local! {
     pub static DATA: RefCell<Data<Profile>> = RefCell::new(Data::default());
     pub static FRIEND_REQUEST: RefCell<BTreeMap<u64, FriendRequest>> = RefCell::new(Default::default());
+    pub static BACKUP: RefCell<Backup> = RefCell::new(Backup::default());
 }
 
 pub struct Store;
