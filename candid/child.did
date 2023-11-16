@@ -22,7 +22,6 @@ type ApplicationRole = variant {
 };
 type Asset = variant { Url : text; None; CanisterStorage : CanisterStorage };
 type CanisterStorage = variant { None; Manifest : Manifest; Chunk : ChunkData };
-type Chunk = record { data : vec nat8; chunk_id : nat64 };
 type ChunkData = record {
   chunk_id : nat64;
   canister : principal;
@@ -187,7 +186,6 @@ service : (principal, text, nat64) -> {
   approve_code_of_conduct : (nat64) -> (Result_4);
   backup_data : () -> ();
   block_user : (principal) -> (Result_3);
-  check_backup_data_chunks : () -> (nat64) query;
   clear_relations : (text) -> (bool);
   decline_friend_request : (principal, nat64) -> (Result);
   download_chunk : (nat64) -> (vec nat8) query;
@@ -214,8 +212,7 @@ service : (principal, text, nat64) -> {
   remove_friend_request : (principal, nat64) -> (Result);
   remove_starred : (principal) -> (Result_3);
   remove_wallet : (principal) -> (Result_3);
-  restore_data : () -> ();
   set_wallet_as_primary : (principal) -> (Result_5);
+  total_chunks : () -> (nat64) query;
   unblock_user : (principal) -> (Result_3);
-  upload_chunk : (Chunk) -> ();
 }

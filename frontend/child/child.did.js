@@ -204,10 +204,6 @@ export const idlFactory = ({ IDL }) => {
     'application_role' : ApplicationRole,
   });
   const Result_5 = IDL.Variant({ 'Ok' : IDL.Null, 'Err' : IDL.Null });
-  const Chunk = IDL.Record({
-    'data' : IDL.Vec(IDL.Nat8),
-    'chunk_id' : IDL.Nat64,
-  });
   return IDL.Service({
     '__get_candid_interface_tmp_hack' : IDL.Func([], [IDL.Text], ['query']),
     'accept_cycles' : IDL.Func([], [IDL.Nat64], []),
@@ -220,7 +216,6 @@ export const idlFactory = ({ IDL }) => {
     'approve_code_of_conduct' : IDL.Func([IDL.Nat64], [Result_4], []),
     'backup_data' : IDL.Func([], [], []),
     'block_user' : IDL.Func([IDL.Principal], [Result_3], []),
-    'check_backup_data_chunks' : IDL.Func([], [IDL.Nat64], ['query']),
     'clear_relations' : IDL.Func([IDL.Text], [IDL.Bool], []),
     'decline_friend_request' : IDL.Func(
         [IDL.Principal, IDL.Nat64],
@@ -286,10 +281,9 @@ export const idlFactory = ({ IDL }) => {
       ),
     'remove_starred' : IDL.Func([IDL.Principal], [Result_3], []),
     'remove_wallet' : IDL.Func([IDL.Principal], [Result_3], []),
-    'restore_data' : IDL.Func([], [], []),
     'set_wallet_as_primary' : IDL.Func([IDL.Principal], [Result_5], []),
+    'total_chunks' : IDL.Func([], [IDL.Nat64], ['query']),
     'unblock_user' : IDL.Func([IDL.Principal], [Result_3], []),
-    'upload_chunk' : IDL.Func([Chunk], [], []),
   });
 };
 export const init = ({ IDL }) => {

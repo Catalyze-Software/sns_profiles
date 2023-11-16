@@ -29,7 +29,8 @@ impl Backup {
             let hash = Sha256::digest(&serialized);
 
             // clear first
-            *self = Backup::default();
+            self.chunks.clear();
+            self.hash.clear();
 
             self.hash = hash.to_vec();
             for data in serialized.chunks(CHUNK_SIZE as usize) {
@@ -60,7 +61,12 @@ impl Backup {
         });
     }
 
-    pub fn upload_chunk(&mut self, chunk: Chunk) {
-        self.chunks.insert(chunk.chunk_id as usize, chunk.data)
+    pub fn remove_backup(&mut self) {
+        self.hash.clear();
+        self.chunks.clear();
+    }
+
+    pub fn upload_chunk(&mut self, chunk: (u64, Vec<u8>)) {
+        self.chunks.insert(chunk.0 as usize, chunk.1)
     }
 }

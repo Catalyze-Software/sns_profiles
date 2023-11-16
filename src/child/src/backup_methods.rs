@@ -1,7 +1,7 @@
 use candid::candid_method;
 use ic_cdk_macros::{query, update};
 
-use crate::{backup::Chunk, store::BACKUP};
+use crate::store::BACKUP;
 
 #[update]
 #[candid_method(update)]
@@ -11,8 +11,8 @@ pub fn backup_data() {
 
 #[query]
 #[candid_method(query)]
-pub fn check_backup_data_chunks() -> usize {
-    BACKUP.with(|b| b.borrow_mut().check_backup_data_chunks())
+pub fn total_chunks() -> u64 {
+    BACKUP.with(|b| b.borrow_mut().check_backup_data_chunks() as u64)
 }
 
 #[query]
@@ -29,6 +29,12 @@ pub fn restore_data() {
 
 #[update]
 #[candid_method(update)]
-pub fn upload_chunk(chunk: Chunk) {
+pub fn remove_backup() {
+    BACKUP.with(|b| b.borrow_mut().remove_backup())
+}
+
+#[update]
+#[candid_method(update)]
+pub fn upload_chunk(chunk: (u64, Vec<u8>)) {
     BACKUP.with(|b| b.borrow_mut().upload_chunk(chunk))
 }
