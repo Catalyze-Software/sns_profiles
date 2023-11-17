@@ -199,6 +199,7 @@ export interface _SERVICE {
   'approve_code_of_conduct' : ActorMethod<[bigint], Result_4>,
   'backup_data' : ActorMethod<[], string>,
   'block_user' : ActorMethod<[Principal], Result_3>,
+  'clear_backup' : ActorMethod<[], undefined>,
   'clear_relations' : ActorMethod<[string], boolean>,
   'decline_friend_request' : ActorMethod<[Principal, bigint], Result>,
   'download_chunk' : ActorMethod<[bigint], Chunk>,
@@ -224,6 +225,7 @@ export interface _SERVICE {
   'get_starred_events' : ActorMethod<[], Array<Principal>>,
   'get_starred_groups' : ActorMethod<[], Array<Principal>>,
   'get_starred_tasks' : ActorMethod<[], Array<Principal>>,
+  'hash' : ActorMethod<[], string>,
   'http_request' : ActorMethod<[HttpRequest], HttpResponse>,
   'migration_add_profiles' : ActorMethod<
     [Array<[Principal, Profile]>],

@@ -187,6 +187,7 @@ service : (principal, text, nat64) -> {
   approve_code_of_conduct : (nat64) -> (Result_4);
   backup_data : () -> (text);
   block_user : (principal) -> (Result_3);
+  clear_backup : () -> ();
   clear_relations : (text) -> (bool);
   decline_friend_request : (principal, nat64) -> (Result);
   download_chunk : (nat64) -> (Chunk) query;
@@ -208,6 +209,7 @@ service : (principal, text, nat64) -> {
   get_starred_events : () -> (vec principal) query;
   get_starred_groups : () -> (vec principal) query;
   get_starred_tasks : () -> (vec principal) query;
+  hash : () -> (text) query;
   http_request : (HttpRequest) -> (HttpResponse) query;
   migration_add_profiles : (vec record { principal; Profile }) -> ();
   remove_friend : (principal) -> (Result);

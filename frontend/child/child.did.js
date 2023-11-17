@@ -220,6 +220,7 @@ export const idlFactory = ({ IDL }) => {
     'approve_code_of_conduct' : IDL.Func([IDL.Nat64], [Result_4], []),
     'backup_data' : IDL.Func([], [IDL.Text], []),
     'block_user' : IDL.Func([IDL.Principal], [Result_3], []),
+    'clear_backup' : IDL.Func([], [], []),
     'clear_relations' : IDL.Func([IDL.Text], [IDL.Bool], []),
     'decline_friend_request' : IDL.Func(
         [IDL.Principal, IDL.Nat64],
@@ -272,6 +273,7 @@ export const idlFactory = ({ IDL }) => {
     'get_starred_events' : IDL.Func([], [IDL.Vec(IDL.Principal)], ['query']),
     'get_starred_groups' : IDL.Func([], [IDL.Vec(IDL.Principal)], ['query']),
     'get_starred_tasks' : IDL.Func([], [IDL.Vec(IDL.Principal)], ['query']),
+    'hash' : IDL.Func([], [IDL.Text], ['query']),
     'http_request' : IDL.Func([HttpRequest], [HttpResponse], ['query']),
     'migration_add_profiles' : IDL.Func(
         [IDL.Vec(IDL.Tuple(IDL.Principal, Profile))],

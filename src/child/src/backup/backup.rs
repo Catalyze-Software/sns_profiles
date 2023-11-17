@@ -14,7 +14,7 @@ pub type ChunkId = u64;
 pub type Hash = Vec<u8>;
 pub const CHUNK_SIZE: u64 = 1 * 1024 * 1024;
 
-#[derive(Default)]
+#[derive(Default, CandidType, Clone)]
 pub struct Backup {
     hash: Option<Hash>,
     chunks: Vec<Vec<u8>>,
@@ -105,6 +105,17 @@ impl Backup {
 
     pub fn total_chunks(&self) -> usize {
         self.chunks.len()
+    }
+
+    pub fn clear_backup(&mut self) {
+        *self = Backup::default();
+    }
+
+    pub fn hash(&self) -> String {
+        match self.hash.clone() {
+            None => panic!("No backup found"),
+            Some(hash) => hash_string(hash),
+        }
     }
 }
 
