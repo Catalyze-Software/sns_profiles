@@ -16,14 +16,24 @@ pub const CHUNK_SIZE: u64 = 1 * 1024 * 1024;
 
 #[derive(Default, CandidType, Clone)]
 pub struct Backup {
-    hash: Option<Hash>,
-    chunks: Vec<Vec<u8>>,
+    hash: Hash,
+    chunks: Vec<Chunk>,
 }
 
-#[derive(CandidType, Deserialize)]
+#[derive(CandidType, Deserialize, Clone)]
 pub struct Chunk {
     chunk_id: ChunkId,
     data: Vec<u8>,
+}
+
+pub fn data_hash() -> Hash {
+    DATA.with(|data| {
+        let data = data.borrow();
+        let serialized = Encode!(&*data).expect("Failed to encode data");
+        let hash = Sha256::digest(&serialized);
+
+        hash.to_vec()
+    })
 }
 
 impl Backup {
@@ -36,29 +46,37 @@ impl Backup {
 
             // clear first
             self.chunks.clear();
-            self.hash = None;
+            self.hash.clear();
 
-            for data in serialized.chunks(CHUNK_SIZE as usize) {
-                self.chunks.extend_from_slice(&[data.to_vec()]);
+            for (i, data) in serialized.chunks(CHUNK_SIZE as usize).enumerate() {
+                self.chunks.push(Chunk {
+                    chunk_id: i as u64,
+                    data: data.to_vec(),
+                });
             }
-            self.hash = Some(hash.to_vec());
+            self.hash = hash.to_vec();
+        });
 
-            hash_string(hash.to_vec())
-        })
+        assert_eq!(self.hash, data_hash());
+
+        data_hash().iter().map(|b| format!("{:02x}", b)).collect()
     }
 
     pub fn restore_data(&self) -> String {
         let mut concatenated: Vec<u8> = Vec::new();
-        for data in self.chunks.iter() {
-            concatenated.extend_from_slice(data);
+        for (i, chunk) in self.chunks.iter().enumerate() {
+            if i as u64 != chunk.chunk_id {
+                ic_cdk::trap(&format!(
+                    "Chunk id mismatch: expected {}, got {}",
+                    i, chunk.chunk_id
+                ));
+            }
+
+            concatenated.extend_from_slice(chunk.data.as_slice());
         }
 
-        let hash = Sha256::digest(&concatenated);
-
-        match self.hash.clone() {
-            None => panic!("No backup found"),
-            Some(backup_hash) => assert_eq!(backup_hash.to_vec(), hash.to_vec()),
-        }
+        let backup_hash = Sha256::digest(&concatenated);
+        assert_eq!(self.hash, backup_hash.to_vec());
 
         let restored_data = Decode!(&concatenated, Data<Profile>).expect("Failed to decode data");
 
@@ -67,40 +85,39 @@ impl Backup {
             let serialized = Encode!(&*data).expect("Failed to encode data");
             let data_hash = Sha256::digest(&serialized);
 
-            assert_eq!(data_hash.to_vec(), hash.to_vec());
+            assert_eq!(data_hash.to_vec(), backup_hash.to_vec());
 
             *data = restored_data;
         });
 
-        hash_string(hash.to_vec())
+        hash_string(&self.hash)
     }
 
     pub fn download_chunk(&self, n: u64) -> Chunk {
         Chunk {
             chunk_id: n,
-            data: self.chunks[n as usize].clone(),
+            data: self.chunks[n as usize].data.clone(),
         }
     }
 
     pub fn upload_chunk(&mut self, chunk: Chunk) {
-        match self.hash {
-            Some(_) => panic!("Backup not empty"),
-            None => {
-                self.chunks.insert(chunk.chunk_id as usize, chunk.data);
-            }
-        }
+        let chunk = Chunk {
+            chunk_id: chunk.chunk_id,
+            data: chunk.data,
+        };
+        self.chunks.insert(chunk.chunk_id as usize, chunk);
     }
 
     pub fn finalize_upload(&mut self) -> String {
         let mut concatenated: Vec<u8> = Vec::new();
         for chunk in self.chunks.iter() {
-            concatenated.extend_from_slice(chunk);
+            concatenated.extend_from_slice(&chunk.data.as_slice());
         }
 
         let hash = Sha256::digest(&concatenated);
-        self.hash = Some(hash.to_vec());
+        self.hash = hash.to_vec();
 
-        hash_string(hash.to_vec())
+        hash_string(&hash.to_vec())
     }
 
     pub fn total_chunks(&self) -> usize {
@@ -110,16 +127,9 @@ impl Backup {
     pub fn clear_backup(&mut self) {
         *self = Backup::default();
     }
-
-    pub fn hash(&self) -> String {
-        match self.hash.clone() {
-            None => panic!("No backup found"),
-            Some(hash) => hash_string(hash),
-        }
-    }
 }
 
-fn hash_string(hash: Hash) -> String {
+fn hash_string(hash: &Hash) -> String {
     hash.iter()
         .map(|b| format!("{:02x}", b))
         .collect::<String>()

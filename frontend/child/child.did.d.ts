@@ -237,6 +237,7 @@ export interface _SERVICE {
   'remove_wallet' : ActorMethod<[Principal], Result_3>,
   'restore_data' : ActorMethod<[], string>,
   'set_wallet_as_primary' : ActorMethod<[Principal], Result_5>,
+  'test_serde' : ActorMethod<[], undefined>,
   'total_chunks' : ActorMethod<[], bigint>,
   'unblock_user' : ActorMethod<[Principal], Result_3>,
   'upload_chunk' : ActorMethod<[Chunk], undefined>,

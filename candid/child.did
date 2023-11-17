@@ -218,6 +218,7 @@ service : (principal, text, nat64) -> {
   remove_wallet : (principal) -> (Result_3);
   restore_data : () -> (text);
   set_wallet_as_primary : (principal) -> (Result_5);
+  test_serde : () -> () query;
   total_chunks : () -> (nat64) query;
   unblock_user : (principal) -> (Result_3);
   upload_chunk : (Chunk) -> ();

@@ -290,6 +290,7 @@ export const idlFactory = ({ IDL }) => {
     'remove_wallet' : IDL.Func([IDL.Principal], [Result_3], []),
     'restore_data' : IDL.Func([], [IDL.Text], []),
     'set_wallet_as_primary' : IDL.Func([IDL.Principal], [Result_5], []),
+    'test_serde' : IDL.Func([], [], ['query']),
     'total_chunks' : IDL.Func([], [IDL.Nat64], ['query']),
     'unblock_user' : IDL.Func([IDL.Principal], [Result_3], []),
     'upload_chunk' : IDL.Func([Chunk], [], []),

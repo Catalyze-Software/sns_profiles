@@ -1,4 +1,4 @@
-use super::backup::{Backup, Chunk, ChunkId};
+use super::backup::{data_hash, Chunk, ChunkId};
 use super::principals::is_owner;
 use crate::backup::backup::BACKUP;
 use candid::candid_method;
@@ -49,5 +49,5 @@ fn clear_backup() {
 #[query(guard = "is_owner")]
 #[candid_method(query)]
 fn hash() -> String {
-    BACKUP.with(|b| b.borrow().hash())
+    data_hash().iter().map(|b| format!("{:02x}", b)).collect()
 }

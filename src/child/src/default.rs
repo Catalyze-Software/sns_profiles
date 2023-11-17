@@ -50,7 +50,7 @@ fn http_request(req: HttpRequest) -> HttpResponse {
 #[query(name = "__get_candid_interface_tmp_hack")]
 #[candid_method(query, rename = "__get_candid_interface_tmp_hack")]
 pub fn __export_did_tmp_() -> String {
-    use crate::backup::backup::{Backup, Chunk, ChunkId};
+    use crate::backup::backup::{Chunk, ChunkId};
     use candid::export_service;
     use ic_cdk::api::management_canister::http_request::HttpResponse;
     use ic_scalable_misc::enums::api_error_type::ApiError;
