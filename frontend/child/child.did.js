@@ -119,6 +119,10 @@ export const idlFactory = ({ IDL }) => {
     'provider' : IDL.Text,
   });
   const Result_4 = IDL.Variant({ 'Ok' : IDL.Bool, 'Err' : ApiError });
+  const Chunk = IDL.Record({
+    'data' : IDL.Vec(IDL.Nat8),
+    'chunk_id' : IDL.Nat64,
+  });
   const UpdateProfile = IDL.Record({
     'profile_image' : Asset,
     'banner_image' : Asset,
@@ -214,6 +218,7 @@ export const idlFactory = ({ IDL }) => {
     'add_starred' : IDL.Func([IDL.Principal], [Result_3], []),
     'add_wallet' : IDL.Func([PostWallet], [Result_3], []),
     'approve_code_of_conduct' : IDL.Func([IDL.Nat64], [Result_4], []),
+    'backup_data' : IDL.Func([], [IDL.Text], []),
     'block_user' : IDL.Func([IDL.Principal], [Result_3], []),
     'clear_relations' : IDL.Func([IDL.Text], [IDL.Bool], []),
     'decline_friend_request' : IDL.Func(
@@ -221,7 +226,9 @@ export const idlFactory = ({ IDL }) => {
         [Result],
         [],
       ),
+    'download_chunk' : IDL.Func([IDL.Nat64], [Chunk], ['query']),
     'edit_profile' : IDL.Func([UpdateProfile], [Result_3], []),
+    'finalize_upload' : IDL.Func([], [IDL.Text], []),
     'get_chunked_data' : IDL.Func(
         [IDL.Vec(ProfileFilter), IDL.Nat64, IDL.Nat64],
         [IDL.Vec(IDL.Nat8), IDL.Tuple(IDL.Nat64, IDL.Nat64)],
@@ -279,8 +286,11 @@ export const idlFactory = ({ IDL }) => {
       ),
     'remove_starred' : IDL.Func([IDL.Principal], [Result_3], []),
     'remove_wallet' : IDL.Func([IDL.Principal], [Result_3], []),
+    'restore_data' : IDL.Func([], [IDL.Text], []),
     'set_wallet_as_primary' : IDL.Func([IDL.Principal], [Result_5], []),
+    'total_chunks' : IDL.Func([], [IDL.Nat64], ['query']),
     'unblock_user' : IDL.Func([IDL.Principal], [Result_3], []),
+    'upload_chunk' : IDL.Func([Chunk], [], []),
   });
 };
 export const init = ({ IDL }) => {

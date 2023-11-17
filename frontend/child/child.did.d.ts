@@ -25,6 +25,7 @@ export type Asset = { 'Url' : string } |
 export type CanisterStorage = { 'None' : null } |
   { 'Manifest' : Manifest } |
   { 'Chunk' : ChunkData };
+export interface Chunk { 'data' : Uint8Array | number[], 'chunk_id' : bigint }
 export interface ChunkData {
   'chunk_id' : bigint,
   'canister' : Principal,
@@ -196,10 +197,13 @@ export interface _SERVICE {
   'add_starred' : ActorMethod<[Principal], Result_3>,
   'add_wallet' : ActorMethod<[PostWallet], Result_3>,
   'approve_code_of_conduct' : ActorMethod<[bigint], Result_4>,
+  'backup_data' : ActorMethod<[], string>,
   'block_user' : ActorMethod<[Principal], Result_3>,
   'clear_relations' : ActorMethod<[string], boolean>,
   'decline_friend_request' : ActorMethod<[Principal, bigint], Result>,
+  'download_chunk' : ActorMethod<[bigint], Chunk>,
   'edit_profile' : ActorMethod<[UpdateProfile], Result_3>,
+  'finalize_upload' : ActorMethod<[], string>,
   'get_chunked_data' : ActorMethod<
     [Array<ProfileFilter>, bigint, bigint],
     [Uint8Array | number[], [bigint, bigint]]
@@ -229,6 +233,9 @@ export interface _SERVICE {
   'remove_friend_request' : ActorMethod<[Principal, bigint], Result>,
   'remove_starred' : ActorMethod<[Principal], Result_3>,
   'remove_wallet' : ActorMethod<[Principal], Result_3>,
+  'restore_data' : ActorMethod<[], string>,
   'set_wallet_as_primary' : ActorMethod<[Principal], Result_5>,
+  'total_chunks' : ActorMethod<[], bigint>,
   'unblock_user' : ActorMethod<[Principal], Result_3>,
+  'upload_chunk' : ActorMethod<[Chunk], undefined>,
 }
