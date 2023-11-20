@@ -273,7 +273,6 @@ export const idlFactory = ({ IDL }) => {
     'get_starred_events' : IDL.Func([], [IDL.Vec(IDL.Principal)], ['query']),
     'get_starred_groups' : IDL.Func([], [IDL.Vec(IDL.Principal)], ['query']),
     'get_starred_tasks' : IDL.Func([], [IDL.Vec(IDL.Principal)], ['query']),
-    'hash' : IDL.Func([], [IDL.Text], ['query']),
     'http_request' : IDL.Func([HttpRequest], [HttpResponse], ['query']),
     'migration_add_profiles' : IDL.Func(
         [IDL.Vec(IDL.Tuple(IDL.Principal, Profile))],
@@ -290,7 +289,6 @@ export const idlFactory = ({ IDL }) => {
     'remove_wallet' : IDL.Func([IDL.Principal], [Result_3], []),
     'restore_data' : IDL.Func([], [IDL.Text], []),
     'set_wallet_as_primary' : IDL.Func([IDL.Principal], [Result_5], []),
-    'test_serde' : IDL.Func([], [], ['query']),
     'total_chunks' : IDL.Func([], [IDL.Nat64], ['query']),
     'unblock_user' : IDL.Func([IDL.Principal], [Result_3], []),
     'upload_chunk' : IDL.Func([Chunk], [], []),

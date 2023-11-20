@@ -209,7 +209,6 @@ service : (principal, text, nat64) -> {
   get_starred_events : () -> (vec principal) query;
   get_starred_groups : () -> (vec principal) query;
   get_starred_tasks : () -> (vec principal) query;
-  hash : () -> (text) query;
   http_request : (HttpRequest) -> (HttpResponse) query;
   migration_add_profiles : (vec record { principal; Profile }) -> ();
   remove_friend : (principal) -> (Result);

@@ -225,7 +225,6 @@ export interface _SERVICE {
   'get_starred_events' : ActorMethod<[], Array<Principal>>,
   'get_starred_groups' : ActorMethod<[], Array<Principal>>,
   'get_starred_tasks' : ActorMethod<[], Array<Principal>>,
-  'hash' : ActorMethod<[], string>,
   'http_request' : ActorMethod<[HttpRequest], HttpResponse>,
   'migration_add_profiles' : ActorMethod<
     [Array<[Principal, Profile]>],
@@ -237,7 +236,6 @@ export interface _SERVICE {
   'remove_wallet' : ActorMethod<[Principal], Result_3>,
   'restore_data' : ActorMethod<[], string>,
   'set_wallet_as_primary' : ActorMethod<[Principal], Result_5>,
-  'test_serde' : ActorMethod<[], undefined>,
   'total_chunks' : ActorMethod<[], bigint>,
   'unblock_user' : ActorMethod<[Principal], Result_3>,
   'upload_chunk' : ActorMethod<[Chunk], undefined>,

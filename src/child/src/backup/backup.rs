@@ -26,22 +26,14 @@ pub struct Chunk {
     data: Vec<u8>,
 }
 
-pub fn data_hash() -> Hash {
-    DATA.with(|data| {
-        let data = data.borrow();
-        let serialized = Encode!(&*data).expect("Failed to encode data");
-        let hash = Sha256::digest(&serialized);
-
-        hash.to_vec()
-    })
-}
-
 impl Backup {
     pub fn backup_data(&mut self) -> String {
         DATA.with(|data| {
             let data = data.borrow();
 
             let serialized = Encode!(&*data).expect("Failed to encode data");
+            let _ = Decode!(&serialized, Data<Profile>).expect("Failed to decode data");
+
             let hash = Sha256::digest(&serialized);
 
             // clear first
@@ -57,9 +49,17 @@ impl Backup {
             self.hash = hash.to_vec();
         });
 
-        assert_eq!(self.hash, data_hash());
+        DATA.with(|data| {
+            let data = data.borrow();
 
-        data_hash().iter().map(|b| format!("{:02x}", b)).collect()
+            let serialized = Encode!(&*data).expect("Failed to encode data");
+            let _ = Decode!(&serialized, Data<Profile>).expect("Failed to decode data");
+
+            let data_hash = Sha256::digest(&serialized);
+            assert_eq!(data_hash.to_vec(), self.hash);
+
+            data_hash.iter().map(|b| format!("{:02x}", b)).collect()
+        })
     }
 
     pub fn restore_data(&self) -> String {
@@ -82,11 +82,6 @@ impl Backup {
 
         DATA.with(|data| {
             let mut data = data.borrow_mut();
-            let serialized = Encode!(&*data).expect("Failed to encode data");
-            let data_hash = Sha256::digest(&serialized);
-
-            assert_eq!(data_hash.to_vec(), backup_hash.to_vec());
-
             *data = restored_data;
         });
 
