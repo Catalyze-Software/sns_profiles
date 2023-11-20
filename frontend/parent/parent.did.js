@@ -186,7 +186,7 @@ export const idlFactory = ({ IDL }) => {
     'get_profiles' : IDL.Func(
         [IDL.Nat64, IDL.Nat64, IDL.Vec(ProfileFilter), FilterType, ProfileSort],
         [PagedResponse],
-        ['query'],
+        ['composite_query'],
       ),
     'http_request' : IDL.Func([HttpRequest], [HttpResponse], ['query']),
   });

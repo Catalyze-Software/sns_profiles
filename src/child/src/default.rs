@@ -45,15 +45,15 @@ pub fn migrate_to_stable() {
 // Stores the data in stable storage before upgrading the canister.
 #[pre_upgrade]
 pub fn pre_upgrade() {
-    let memory = MEMORY_MANAGER.with(|m| m.borrow().get(MemoryId::new(0)));
-    DATA.with(|data| ic_methods::deprecated_pre_upgrade(data, memory))
+    // let memory = MEMORY_MANAGER.with(|m| m.borrow().get(MemoryId::new(0)));
+    // DATA.with(|data| ic_methods::deprecated_pre_upgrade(data, memory))
 }
 
 // Restores the data from stable- to heap storage after upgrading the canister.
 #[post_upgrade]
 pub fn post_upgrade() {
-    let memory = MEMORY_MANAGER.with(|m| m.borrow().get(MemoryId::new(0)));
-    DATA.with(|data| ic_methods::deprecated_post_upgrade(data, memory))
+    // let memory = MEMORY_MANAGER.with(|m| m.borrow().get(MemoryId::new(0)));
+    // DATA.with(|data| ic_methods::deprecated_post_upgrade(data, memory))
 }
 // This call get triggered when a new canister is spun up
 // the data is passed along to the new canister as a byte array
@@ -90,6 +90,7 @@ fn http_request(req: HttpRequest) -> HttpResponse {
 // Hacky way to expose the candid interface to the outside world
 #[query(name = "__get_candid_interface_tmp_hack")]
 pub fn __export_did_tmp_() -> String {
+    use crate::backup::backup::{Chunk, ChunkId};
     use candid::export_service;
     use ic_cdk::api::management_canister::http_request::HttpResponse;
     use ic_scalable_misc::enums::api_error_type::ApiError;

@@ -22,6 +22,7 @@ type ApplicationRole = variant {
 };
 type Asset = variant { Url : text; None; CanisterStorage : CanisterStorage };
 type CanisterStorage = variant { None; Manifest : Manifest; Chunk : ChunkData };
+type Chunk = record { data : vec nat8; chunk_id : nat64 };
 type ChunkData = record {
   chunk_id : nat64;
   canister : principal;
@@ -174,7 +175,11 @@ service : (principal, text, nat64) -> {
   add_starred : (principal) -> (Result_1);
   add_wallet : (PostWallet) -> (Result_1);
   approve_code_of_conduct : (nat64) -> (Result_2);
+  backup_data : () -> (text);
+  clear_backup : () -> ();
+  download_chunk : (nat64) -> (Chunk) query;
   edit_profile : (UpdateProfile) -> (Result_1);
+  finalize_upload : () -> (text);
   get_chunked_data : (vec ProfileFilter, nat64, nat64) -> (
       vec nat8,
       record { nat64; nat64 },
@@ -191,9 +196,13 @@ service : (principal, text, nat64) -> {
   get_starred_groups : () -> (vec principal) query;
   get_starred_tasks : () -> (vec principal) query;
   http_request : (HttpRequest) -> (HttpResponse) query;
+  migrate_to_stable : () -> ();
   migration_add_profiles : (vec record { principal; Profile }) -> ();
   remove_relation : (principal) -> (Result_1);
   remove_starred : (principal) -> (Result_1);
   remove_wallet : (principal) -> (Result_1);
+  restore_data : () -> (text);
   set_wallet_as_primary : (principal) -> (Result_3);
+  total_chunks : () -> (nat64) query;
+  upload_chunk : (Chunk) -> ();
 }

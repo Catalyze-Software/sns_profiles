@@ -25,6 +25,7 @@ export type Asset = { 'Url' : string } |
 export type CanisterStorage = { 'None' : null } |
   { 'Manifest' : Manifest } |
   { 'Chunk' : ChunkData };
+export interface Chunk { 'data' : Uint8Array | number[], 'chunk_id' : bigint }
 export interface ChunkData {
   'chunk_id' : bigint,
   'canister' : Principal,
@@ -184,7 +185,11 @@ export interface _SERVICE {
   'add_starred' : ActorMethod<[Principal], Result_1>,
   'add_wallet' : ActorMethod<[PostWallet], Result_1>,
   'approve_code_of_conduct' : ActorMethod<[bigint], Result_2>,
+  'backup_data' : ActorMethod<[], string>,
+  'clear_backup' : ActorMethod<[], undefined>,
+  'download_chunk' : ActorMethod<[bigint], Chunk>,
   'edit_profile' : ActorMethod<[UpdateProfile], Result_1>,
+  'finalize_upload' : ActorMethod<[], string>,
   'get_chunked_data' : ActorMethod<
     [Array<ProfileFilter>, bigint, bigint],
     [Uint8Array | number[], [bigint, bigint]]
@@ -205,6 +210,7 @@ export interface _SERVICE {
   'get_starred_groups' : ActorMethod<[], Array<Principal>>,
   'get_starred_tasks' : ActorMethod<[], Array<Principal>>,
   'http_request' : ActorMethod<[HttpRequest], HttpResponse>,
+  'migrate_to_stable' : ActorMethod<[], undefined>,
   'migration_add_profiles' : ActorMethod<
     [Array<[Principal, Profile]>],
     undefined
@@ -212,5 +218,8 @@ export interface _SERVICE {
   'remove_relation' : ActorMethod<[Principal], Result_1>,
   'remove_starred' : ActorMethod<[Principal], Result_1>,
   'remove_wallet' : ActorMethod<[Principal], Result_1>,
+  'restore_data' : ActorMethod<[], string>,
   'set_wallet_as_primary' : ActorMethod<[Principal], Result_3>,
+  'total_chunks' : ActorMethod<[], bigint>,
+  'upload_chunk' : ActorMethod<[Chunk], undefined>,
 }

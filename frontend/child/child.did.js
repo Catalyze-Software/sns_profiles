@@ -111,6 +111,10 @@ export const idlFactory = ({ IDL }) => {
     'provider' : IDL.Text,
   });
   const Result_2 = IDL.Variant({ 'Ok' : IDL.Bool, 'Err' : ApiError });
+  const Chunk = IDL.Record({
+    'data' : IDL.Vec(IDL.Nat8),
+    'chunk_id' : IDL.Nat64,
+  });
   const UpdateProfile = IDL.Record({
     'profile_image' : Asset,
     'banner_image' : Asset,
@@ -201,7 +205,11 @@ export const idlFactory = ({ IDL }) => {
     'add_starred' : IDL.Func([IDL.Principal], [Result_1], []),
     'add_wallet' : IDL.Func([PostWallet], [Result_1], []),
     'approve_code_of_conduct' : IDL.Func([IDL.Nat64], [Result_2], []),
+    'backup_data' : IDL.Func([], [IDL.Text], []),
+    'clear_backup' : IDL.Func([], [], []),
+    'download_chunk' : IDL.Func([IDL.Nat64], [Chunk], ['query']),
     'edit_profile' : IDL.Func([UpdateProfile], [Result_1], []),
+    'finalize_upload' : IDL.Func([], [IDL.Text], []),
     'get_chunked_data' : IDL.Func(
         [IDL.Vec(ProfileFilter), IDL.Nat64, IDL.Nat64],
         [IDL.Vec(IDL.Nat8), IDL.Tuple(IDL.Nat64, IDL.Nat64)],
@@ -241,6 +249,7 @@ export const idlFactory = ({ IDL }) => {
     'get_starred_groups' : IDL.Func([], [IDL.Vec(IDL.Principal)], ['query']),
     'get_starred_tasks' : IDL.Func([], [IDL.Vec(IDL.Principal)], ['query']),
     'http_request' : IDL.Func([HttpRequest], [HttpResponse], ['query']),
+    'migrate_to_stable' : IDL.Func([], [], []),
     'migration_add_profiles' : IDL.Func(
         [IDL.Vec(IDL.Tuple(IDL.Principal, Profile))],
         [],
@@ -249,7 +258,10 @@ export const idlFactory = ({ IDL }) => {
     'remove_relation' : IDL.Func([IDL.Principal], [Result_1], []),
     'remove_starred' : IDL.Func([IDL.Principal], [Result_1], []),
     'remove_wallet' : IDL.Func([IDL.Principal], [Result_1], []),
+    'restore_data' : IDL.Func([], [IDL.Text], []),
     'set_wallet_as_primary' : IDL.Func([IDL.Principal], [Result_3], []),
+    'total_chunks' : IDL.Func([], [IDL.Nat64], ['query']),
+    'upload_chunk' : IDL.Func([Chunk], [], []),
   });
 };
 export const init = ({ IDL }) => {
