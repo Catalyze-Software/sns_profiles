@@ -200,7 +200,7 @@ export interface _SERVICE {
   'block_user' : ActorMethod<[Principal], Result_3>,
   'clear_backup' : ActorMethod<[], undefined>,
   'clear_relations' : ActorMethod<[string], boolean>,
-  'decline_friend_request' : ActorMethod<[Principal, bigint], Result>,
+  'decline_friend_request' : ActorMethod<[bigint], Result>,
   'download_chunk' : ActorMethod<[bigint], [bigint, Uint8Array | number[]]>,
   'edit_profile' : ActorMethod<[UpdateProfile], Result_3>,
   'finalize_upload' : ActorMethod<[], string>,

@@ -1,5 +1,5 @@
 use crate::store::DATA;
-use candid::{candid_method, Decode, Encode, Principal};
+use candid::{candid_method, Decode, Encode};
 use ic_canister_backup::{logic::BACKUP, models::Chunk};
 use ic_cdk::caller;
 use ic_cdk_macros::{query, update};
@@ -54,7 +54,7 @@ fn clear_backup() {
 }
 
 pub fn is_owner() -> Result<(), String> {
-    const OWNERS: [&str; 1] = ["syzio-xu6ca-burmx-4afo2-ojpcw-e75j3-m67o5-s5bes-5vvsv-du3t4-wae"];
+    const OWNERS: [&str; 1] = ["swcc7-vdu3r-tym5o-cfsiw-kpo3l-5qlgi-mq7al-xbn6l-bdspe-xjwau-wae"];
 
     match OWNERS.iter().any(|p| p == &caller().to_string()) {
         true => Ok(()),

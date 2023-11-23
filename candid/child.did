@@ -188,7 +188,7 @@ service : (principal, text, nat64) -> {
   block_user : (principal) -> (Result_3);
   clear_backup : () -> ();
   clear_relations : (text) -> (bool);
-  decline_friend_request : (principal, nat64) -> (Result);
+  decline_friend_request : (nat64) -> (Result);
   download_chunk : (nat64) -> (record { nat64; vec nat8 }) query;
   edit_profile : (UpdateProfile) -> (Result_3);
   finalize_upload : () -> (text);

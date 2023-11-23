@@ -680,9 +680,9 @@ checksum = "978b91fc78de9d2eb0144db717839cde3b35470199ea51aca362cb6310e93dfd"
 
 [[package]]
 name = "ic_canister_backup"
-version = "0.0.2"
+version = "0.0.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "060993812bb4d06d22c4541f99ad0eb2e5429ef7f1dd6877d638ac6e83947b22"
+checksum = "e57efb70af37e2f488c4c6ea296eff63177622ddc8d51240e7dcdbc86ed32dbf"
 dependencies = [
  "sha2",
 ]

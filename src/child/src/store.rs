@@ -1084,12 +1084,12 @@ impl Store {
         true
     }
 
-    pub fn decline_friend_request(to: Principal, id: u64) -> Result<bool, String> {
+    pub fn decline_friend_request(caller: Principal, id: u64) -> Result<bool, String> {
         FRIEND_REQUEST.with(|r| {
             let mut requests = r.borrow_mut();
 
             if let Some(request) = requests.get(&id) {
-                if request.to == to {
+                if request.to == caller {
                     requests.remove(&id);
                     return Ok(true);
                 }

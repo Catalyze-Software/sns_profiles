@@ -218,11 +218,7 @@ export const idlFactory = ({ IDL }) => {
     'block_user' : IDL.Func([IDL.Principal], [Result_3], []),
     'clear_backup' : IDL.Func([], [], []),
     'clear_relations' : IDL.Func([IDL.Text], [IDL.Bool], []),
-    'decline_friend_request' : IDL.Func(
-        [IDL.Principal, IDL.Nat64],
-        [Result],
-        [],
-      ),
+    'decline_friend_request' : IDL.Func([IDL.Nat64], [Result], []),
     'download_chunk' : IDL.Func(
         [IDL.Nat64],
         [IDL.Tuple(IDL.Nat64, IDL.Vec(IDL.Nat8))],
