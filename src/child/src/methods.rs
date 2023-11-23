@@ -164,8 +164,8 @@ pub fn get_friend_requests() -> Vec<FriendRequestResponse> {
 
 #[update]
 #[candid_method(update)]
-pub fn decline_friend_request(principal: Principal, id: u64) -> Result<bool, String> {
-    Store::decline_friend_request(principal, id)
+pub fn decline_friend_request(id: u64) -> Result<bool, String> {
+    Store::decline_friend_request(caller(), id)
 }
 
 #[update]

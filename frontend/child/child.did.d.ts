@@ -196,10 +196,14 @@ export interface _SERVICE {
   'add_starred' : ActorMethod<[Principal], Result_3>,
   'add_wallet' : ActorMethod<[PostWallet], Result_3>,
   'approve_code_of_conduct' : ActorMethod<[bigint], Result_4>,
+  'backup_data' : ActorMethod<[], string>,
   'block_user' : ActorMethod<[Principal], Result_3>,
+  'clear_backup' : ActorMethod<[], undefined>,
   'clear_relations' : ActorMethod<[string], boolean>,
-  'decline_friend_request' : ActorMethod<[Principal, bigint], Result>,
+  'decline_friend_request' : ActorMethod<[bigint], Result>,
+  'download_chunk' : ActorMethod<[bigint], [bigint, Uint8Array | number[]]>,
   'edit_profile' : ActorMethod<[UpdateProfile], Result_3>,
+  'finalize_upload' : ActorMethod<[], string>,
   'get_chunked_data' : ActorMethod<
     [Array<ProfileFilter>, bigint, bigint],
     [Uint8Array | number[], [bigint, bigint]]
@@ -229,6 +233,9 @@ export interface _SERVICE {
   'remove_friend_request' : ActorMethod<[Principal, bigint], Result>,
   'remove_starred' : ActorMethod<[Principal], Result_3>,
   'remove_wallet' : ActorMethod<[Principal], Result_3>,
+  'restore_data' : ActorMethod<[], undefined>,
   'set_wallet_as_primary' : ActorMethod<[Principal], Result_5>,
+  'total_chunks' : ActorMethod<[], bigint>,
   'unblock_user' : ActorMethod<[Principal], Result_3>,
+  'upload_chunk' : ActorMethod<[[bigint, Uint8Array | number[]]], undefined>,
 }
