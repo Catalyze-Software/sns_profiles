@@ -177,21 +177,26 @@ type WalletResponse = record {
 service : (principal, text, nat64) -> {
   __get_candid_interface_tmp_hack : () -> (text) query;
   accept_cycles : () -> (nat64);
-  accept_friend_request : (principal, nat64) -> (Result);
+  accept_friend_request : (nat64) -> (Result);
   add_entry_by_parent : (vec nat8) -> (Result_1);
   add_friend_request : (principal, text) -> (Result_2);
   add_profile : (PostProfile, principal) -> (Result_3);
   add_starred : (principal) -> (Result_3);
   add_wallet : (PostWallet) -> (Result_3);
   approve_code_of_conduct : (nat64) -> (Result_4);
+  backup_data : () -> (text);
   block_user : (principal) -> (Result_3);
-  decline_friend_request : (principal, nat64) -> (Result);
+  clear_backup : () -> ();
+  clear_relations : (text) -> (bool);
+  decline_friend_request : (nat64) -> (Result);
+  download_chunk : (nat64) -> (record { nat64; vec nat8 }) query;
   edit_profile : (UpdateProfile) -> (Result_3);
+  finalize_upload : () -> (text);
   get_chunked_data : (vec ProfileFilter, nat64, nat64) -> (
       vec nat8,
       record { nat64; nat64 },
     ) query;
-  get_friend_requests : (principal) -> (vec FriendRequestResponse) query;
+  get_friend_requests : () -> (vec FriendRequestResponse) query;
   get_profile_by_identifier : (principal) -> (Result_3) query;
   get_profile_by_user_principal : (principal) -> (Result_3) query;
   get_profiles_by_identifier : (vec principal) -> (vec ProfileResponse) query;
@@ -209,6 +214,9 @@ service : (principal, text, nat64) -> {
   remove_friend_request : (principal, nat64) -> (Result);
   remove_starred : (principal) -> (Result_3);
   remove_wallet : (principal) -> (Result_3);
+  restore_data : () -> ();
   set_wallet_as_primary : (principal) -> (Result_5);
+  total_chunks : () -> (nat64) query;
   unblock_user : (principal) -> (Result_3);
+  upload_chunk : (record { nat64; vec nat8 }) -> ();
 }

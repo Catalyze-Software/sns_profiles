@@ -453,12 +453,13 @@ impl Store {
 
     // Method to get the relations of a profile by type
     pub fn get_relations(caller: Principal, relation_type: RelationType) -> Vec<Principal> {
+        // Create a vector to hold the relations
+        let mut relations = vec![];
+
         // get the profile from the data store
         let profile = Self::_get_profile_from_caller(caller);
         // If the profile exists, continue
         if let Some((_principal, _profile)) = profile {
-            // Create a vector to hold the relations
-            let mut relations = vec![];
             // Iterate through the relations in the profile
             _profile
                 .relations
@@ -469,9 +470,8 @@ impl Store {
                         relations.push(_relation_identifier);
                     }
                 });
-            return relations;
-        };
-        return vec![];
+        }
+        relations
     }
 
     // Method to get the profile of the caller
@@ -925,7 +925,7 @@ impl Store {
         message: String,
     ) -> Result<FriendRequestResponse, ApiError> {
         FRIEND_REQUEST.with(|r| {
-            let requests = r.borrow();
+            let mut requests = r.borrow_mut();
 
             // If the requester puts out a second friend request for the user
             if requests
@@ -950,7 +950,7 @@ impl Store {
                 return Err(api_error(
                     ApiErrorType::BadRequest,
                     "PENDING_REQUEST",
-                    "The invites user already send you a friend request",
+                    "The invited user already send you a friend request",
                     DATA.with(|data| Data::get_name(data)).as_str(),
                     "friend_request",
                     None,
@@ -966,7 +966,7 @@ impl Store {
                 created_at: time(),
             };
 
-            r.borrow_mut().insert(id.clone(), request.clone());
+            requests.insert(id.clone(), request.clone());
             Ok(FriendRequestResponse {
                 id,
                 requested_by,
@@ -997,40 +997,41 @@ impl Store {
 
     pub fn accept_friend_request(caller: Principal, id: u64) -> Result<bool, String> {
         FRIEND_REQUEST.with(|r| {
-            let requests = r.borrow();
+            let mut requests = r.borrow_mut();
 
             if let Some(request) = requests.get(&id) {
-                if request.to == caller {
-                    let profiles = DATA.with(|data| Data::get_entries(data));
-
-                    let caller_profile = &profiles
-                        .iter()
-                        .find(|(_, p)| p.principal == caller)
-                        .unwrap()
-                        .1;
-
-                    caller_profile
-                        .clone()
-                        .relations
-                        .insert(request.requested_by, RelationType::Friend.to_string());
-
-                    let to_profile = &profiles
-                        .iter()
-                        .find(|(_, p)| p.principal == request.to)
-                        .unwrap()
-                        .1;
-
-                    to_profile
-                        .clone()
-                        .relations
-                        .insert(request.to, RelationType::Friend.to_string());
-
-                    let _ = DATA.with(|data| {
-                        let _ = Data::update_entry(data, caller, caller_profile.clone());
-                        let _ = Data::update_entry(data, caller, to_profile.clone());
-                    });
+                if request.to != caller {
+                    return Err("Request not found".to_string());
                 }
-                r.borrow_mut().remove(&id);
+                let profiles = DATA.with(|data| Data::get_entries(data));
+
+                let mut caller_profile = profiles
+                    .iter()
+                    .find(|(_, p)| p.principal == request.to)
+                    .unwrap()
+                    .clone();
+
+                caller_profile
+                    .1
+                    .relations
+                    .insert(request.requested_by, RelationType::Friend.to_string());
+
+                let mut to_profile = profiles
+                    .iter()
+                    .find(|(_, p)| p.principal == request.requested_by)
+                    .unwrap()
+                    .clone();
+
+                to_profile
+                    .1
+                    .relations
+                    .insert(request.to, RelationType::Friend.to_string());
+
+                let _ = DATA.with(|data| {
+                    let _ = Data::update_entry(data, caller_profile.0, caller_profile.1);
+                    let _ = Data::update_entry(data, to_profile.0, to_profile.1);
+                });
+                requests.remove(&id);
                 return Ok(true);
             }
 
@@ -1041,37 +1042,55 @@ impl Store {
     pub fn remove_friend(caller: Principal, to_remove: Principal) -> Result<bool, String> {
         let profiles = DATA.with(|data| Data::get_entries(data));
 
-        let caller_profile = &profiles
+        let mut caller_profile = profiles
             .iter()
             .find(|(_, p)| p.principal == caller)
             .unwrap()
-            .1;
+            .clone();
 
-        caller_profile.clone().relations.remove(&to_remove);
+        caller_profile.1.relations.remove(&to_remove);
 
-        let to_remove_profile = &profiles
+        let mut to_remove_profile = profiles
             .iter()
             .find(|(_, p)| p.principal == to_remove)
             .unwrap()
-            .1;
+            .clone();
 
-        to_remove_profile.clone().relations.remove(&caller);
+        to_remove_profile.1.relations.remove(&caller);
 
         let _ = DATA.with(|data| {
-            let _ = Data::update_entry(data, caller, caller_profile.clone());
-            let _ = Data::update_entry(data, caller, to_remove_profile.clone());
+            let _ = Data::update_entry(data, caller_profile.0, caller_profile.1);
+            let _ = Data::update_entry(data, to_remove_profile.0, to_remove_profile.1);
         });
 
         Ok(true)
     }
 
+    pub fn clear_relations(caller: Principal) -> bool {
+        let profiles = DATA.with(|data| Data::get_entries(data));
+
+        let mut caller_profile = profiles
+            .iter()
+            .find(|(_, p)| p.principal == caller)
+            .unwrap()
+            .clone();
+
+        caller_profile.1.relations.clear();
+
+        let _ = DATA.with(|data| {
+            let _ = Data::update_entry(data, caller_profile.0, caller_profile.1);
+        });
+
+        true
+    }
+
     pub fn decline_friend_request(caller: Principal, id: u64) -> Result<bool, String> {
         FRIEND_REQUEST.with(|r| {
-            let requests = r.borrow();
+            let mut requests = r.borrow_mut();
 
             if let Some(request) = requests.get(&id) {
                 if request.to == caller {
-                    r.borrow_mut().remove(&id);
+                    requests.remove(&id);
                     return Ok(true);
                 }
             }
@@ -1082,11 +1101,11 @@ impl Store {
 
     pub fn remove_friend_request(caller: Principal, id: u64) -> Result<bool, String> {
         FRIEND_REQUEST.with(|r| {
-            let requests = r.borrow();
+            let mut requests = r.borrow_mut();
 
             if let Some(request) = requests.get(&id) {
                 if request.requested_by == caller {
-                    r.borrow_mut().remove(&id);
+                    requests.remove(&id);
                     return Ok(true);
                 }
             }
@@ -1095,13 +1114,10 @@ impl Store {
         })
     }
 
-    pub fn block_user(
-        caller: Principal,
-        to_unblock: Principal,
-    ) -> Result<ProfileResponse, ApiError> {
+    pub fn block_user(caller: Principal, to_block: Principal) -> Result<ProfileResponse, ApiError> {
         let inputs = Some(vec![
             format!("principal - {:?}", &caller.to_string()),
-            format!("relation_identifier - {:?}", &to_unblock.to_string()),
+            format!("relation_identifier - {:?}", &to_block.to_string()),
         ]);
 
         // get the profile from the data store
@@ -1113,7 +1129,7 @@ impl Store {
                 // Add the relation to the profile, if existing it will be overwritten
                 _profile
                     .relations
-                    .insert(to_unblock, RelationType::Blocked.to_string());
+                    .insert(to_block, RelationType::Blocked.to_string());
 
                 // Update the profile in the data store
                 DATA.with(|data| Data::update_entry(data, _identifier, _profile))

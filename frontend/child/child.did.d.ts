@@ -189,24 +189,26 @@ export interface WalletResponse {
 export interface _SERVICE {
   '__get_candid_interface_tmp_hack' : ActorMethod<[], string>,
   'accept_cycles' : ActorMethod<[], bigint>,
-  'accept_friend_request' : ActorMethod<[Principal, bigint], Result>,
+  'accept_friend_request' : ActorMethod<[bigint], Result>,
   'add_entry_by_parent' : ActorMethod<[Uint8Array | number[]], Result_1>,
   'add_friend_request' : ActorMethod<[Principal, string], Result_2>,
   'add_profile' : ActorMethod<[PostProfile, Principal], Result_3>,
   'add_starred' : ActorMethod<[Principal], Result_3>,
   'add_wallet' : ActorMethod<[PostWallet], Result_3>,
   'approve_code_of_conduct' : ActorMethod<[bigint], Result_4>,
+  'backup_data' : ActorMethod<[], string>,
   'block_user' : ActorMethod<[Principal], Result_3>,
-  'decline_friend_request' : ActorMethod<[Principal, bigint], Result>,
+  'clear_backup' : ActorMethod<[], undefined>,
+  'clear_relations' : ActorMethod<[string], boolean>,
+  'decline_friend_request' : ActorMethod<[bigint], Result>,
+  'download_chunk' : ActorMethod<[bigint], [bigint, Uint8Array | number[]]>,
   'edit_profile' : ActorMethod<[UpdateProfile], Result_3>,
+  'finalize_upload' : ActorMethod<[], string>,
   'get_chunked_data' : ActorMethod<
     [Array<ProfileFilter>, bigint, bigint],
     [Uint8Array | number[], [bigint, bigint]]
   >,
-  'get_friend_requests' : ActorMethod<
-    [Principal],
-    Array<FriendRequestResponse>
-  >,
+  'get_friend_requests' : ActorMethod<[], Array<FriendRequestResponse>>,
   'get_profile_by_identifier' : ActorMethod<[Principal], Result_3>,
   'get_profile_by_user_principal' : ActorMethod<[Principal], Result_3>,
   'get_profiles_by_identifier' : ActorMethod<
@@ -231,6 +233,9 @@ export interface _SERVICE {
   'remove_friend_request' : ActorMethod<[Principal, bigint], Result>,
   'remove_starred' : ActorMethod<[Principal], Result_3>,
   'remove_wallet' : ActorMethod<[Principal], Result_3>,
+  'restore_data' : ActorMethod<[], undefined>,
   'set_wallet_as_primary' : ActorMethod<[Principal], Result_5>,
+  'total_chunks' : ActorMethod<[], bigint>,
   'unblock_user' : ActorMethod<[Principal], Result_3>,
+  'upload_chunk' : ActorMethod<[[bigint, Uint8Array | number[]]], undefined>,
 }
