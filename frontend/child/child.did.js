@@ -201,6 +201,12 @@ export const idlFactory = ({ IDL }) => {
     'add_starred' : IDL.Func([IDL.Principal], [Result_1], []),
     'add_wallet' : IDL.Func([PostWallet], [Result_1], []),
     'approve_code_of_conduct' : IDL.Func([IDL.Nat64], [Result_2], []),
+    'backup_data' : IDL.Func([], [IDL.Text], []),
+    'download_chunk' : IDL.Func(
+        [IDL.Nat64],
+        [IDL.Tuple(IDL.Nat64, IDL.Vec(IDL.Nat8))],
+        ['query'],
+      ),
     'edit_profile' : IDL.Func([UpdateProfile], [Result_1], []),
     'get_chunked_data' : IDL.Func(
         [IDL.Vec(ProfileFilter), IDL.Nat64, IDL.Nat64],
@@ -245,6 +251,7 @@ export const idlFactory = ({ IDL }) => {
     'remove_starred' : IDL.Func([IDL.Principal], [Result_1], []),
     'remove_wallet' : IDL.Func([IDL.Principal], [Result_1], []),
     'set_wallet_as_primary' : IDL.Func([IDL.Principal], [Result_3], []),
+    'total_chunks' : IDL.Func([], [IDL.Nat64], ['query']),
   });
 };
 export const init = ({ IDL }) => {

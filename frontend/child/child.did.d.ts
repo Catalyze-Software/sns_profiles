@@ -184,6 +184,8 @@ export interface _SERVICE {
   'add_starred' : ActorMethod<[Principal], Result_1>,
   'add_wallet' : ActorMethod<[PostWallet], Result_1>,
   'approve_code_of_conduct' : ActorMethod<[bigint], Result_2>,
+  'backup_data' : ActorMethod<[], string>,
+  'download_chunk' : ActorMethod<[bigint], [bigint, Uint8Array | number[]]>,
   'edit_profile' : ActorMethod<[UpdateProfile], Result_1>,
   'get_chunked_data' : ActorMethod<
     [Array<ProfileFilter>, bigint, bigint],
@@ -212,4 +214,5 @@ export interface _SERVICE {
   'remove_starred' : ActorMethod<[Principal], Result_1>,
   'remove_wallet' : ActorMethod<[Principal], Result_1>,
   'set_wallet_as_primary' : ActorMethod<[Principal], Result_3>,
+  'total_chunks' : ActorMethod<[], bigint>,
 }
