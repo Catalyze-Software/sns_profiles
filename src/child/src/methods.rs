@@ -1,4 +1,4 @@
-use candid::{candid_method, Principal};
+use candid::Principal;
 
 use ic_cdk::{caller, query, update};
 use ic_scalable_canister::ic_scalable_misc::enums::api_error_type::ApiError;
@@ -101,7 +101,6 @@ pub fn get_starred_groups() -> Vec<Principal> {
 }
 
 #[update]
-#[candid_method(update)]
 pub fn add_friend_request(
     principal: Principal,
     message: String,
@@ -110,43 +109,36 @@ pub fn add_friend_request(
 }
 
 #[update]
-#[candid_method(update)]
 pub fn remove_friend(principal: Principal) -> Result<bool, String> {
     Store::remove_friend(caller(), principal)
 }
 
 #[update]
-#[candid_method(update)]
 pub fn accept_friend_request(id: u64) -> Result<bool, String> {
     Store::accept_friend_request(caller(), id)
 }
 
 #[update]
-#[candid_method(update)]
 pub fn remove_friend_request(principal: Principal, id: u64) -> Result<bool, String> {
     Store::remove_friend_request(principal, id)
 }
 
 #[query]
-#[candid_method(query)]
 pub fn get_friend_requests() -> Vec<FriendRequestResponse> {
     Store::get_friend_requests(caller())
 }
 
 #[update]
-#[candid_method(update)]
 pub fn decline_friend_request(id: u64) -> Result<bool, String> {
     Store::decline_friend_request(caller(), id)
 }
 
 #[update]
-#[candid_method(update)]
 pub fn unblock_user(principal: Principal) -> Result<ProfileResponse, ApiError> {
     Store::unblock_user(caller(), principal)
 }
 
 #[update]
-#[candid_method(update)]
 pub fn block_user(principal: Principal) -> Result<ProfileResponse, ApiError> {
     Store::block_user(caller(), principal)
 }
@@ -164,7 +156,6 @@ pub fn get_relations_count(principal: Principal, relation_type: RelationType) ->
 }
 
 #[update]
-#[candid_method(update)]
 pub fn clear_relations(code: String) -> bool {
     if code != "i_know_what_i_am_doing" {
         return false;
