@@ -1,4 +1,5 @@
 export const idlFactory = ({ IDL }) => {
+  const Result = IDL.Variant({ 'Ok' : IDL.Bool, 'Err' : IDL.Text });
   const ErrorMessage = IDL.Record({
     'tag' : IDL.Text,
     'message' : IDL.Text,
@@ -24,7 +25,18 @@ export const idlFactory = ({ IDL }) => {
     'Unexpected' : ErrorMessage,
     'BadRequest' : ErrorMessage,
   });
-  const Result = IDL.Variant({ 'Ok' : IDL.Null, 'Err' : ApiError });
+  const Result_1 = IDL.Variant({ 'Ok' : IDL.Null, 'Err' : ApiError });
+  const FriendRequestResponse = IDL.Record({
+    'id' : IDL.Nat64,
+    'to' : IDL.Principal,
+    'created_at' : IDL.Nat64,
+    'requested_by' : IDL.Principal,
+    'message' : IDL.Text,
+  });
+  const Result_2 = IDL.Variant({
+    'Ok' : FriendRequestResponse,
+    'Err' : ApiError,
+  });
   const ProfilePrivacy = IDL.Variant({
     'Private' : IDL.Null,
     'Public' : IDL.Null,
@@ -101,16 +113,12 @@ export const idlFactory = ({ IDL }) => {
     'skills' : IDL.Vec(IDL.Nat32),
     'application_role' : ApplicationRole,
   });
-  const Result_1 = IDL.Variant({ 'Ok' : ProfileResponse, 'Err' : ApiError });
-  const RelationType = IDL.Variant({
-    'Blocked' : IDL.Null,
-    'Friend' : IDL.Null,
-  });
+  const Result_3 = IDL.Variant({ 'Ok' : ProfileResponse, 'Err' : ApiError });
   const PostWallet = IDL.Record({
     'principal' : IDL.Principal,
     'provider' : IDL.Text,
   });
-  const Result_2 = IDL.Variant({ 'Ok' : IDL.Bool, 'Err' : ApiError });
+  const Result_4 = IDL.Variant({ 'Ok' : IDL.Bool, 'Err' : ApiError });
   const UpdateProfile = IDL.Record({
     'profile_image' : Asset,
     'banner_image' : Asset,
@@ -149,6 +157,10 @@ export const idlFactory = ({ IDL }) => {
     'CreatedOn' : DateRange,
     'Username' : IDL.Text,
   });
+  const RelationType = IDL.Variant({
+    'Blocked' : IDL.Null,
+    'Friend' : IDL.Null,
+  });
   const HttpRequest = IDL.Record({
     'url' : IDL.Text,
     'method' : IDL.Text,
@@ -161,60 +173,46 @@ export const idlFactory = ({ IDL }) => {
     'body' : IDL.Vec(IDL.Nat8),
     'headers' : IDL.Vec(HttpHeader),
   });
-  const Wallet = IDL.Record({ 'provider' : IDL.Text, 'is_primary' : IDL.Bool });
-  const Profile = IDL.Record({
-    'updated_on' : IDL.Nat64,
-    'profile_image' : Asset,
-    'principal' : IDL.Principal,
-    'banner_image' : Asset,
-    'about' : IDL.Text,
-    'country' : IDL.Text,
-    'username' : IDL.Text,
-    'starred' : IDL.Vec(IDL.Tuple(IDL.Principal, IDL.Text)),
-    'interests' : IDL.Vec(IDL.Nat32),
-    'city' : IDL.Text,
-    'created_on' : IDL.Nat64,
-    'email' : IDL.Text,
-    'website' : IDL.Text,
-    'display_name' : IDL.Text,
-    'extra' : IDL.Text,
-    'privacy' : ProfilePrivacy,
-    'wallets' : IDL.Vec(IDL.Tuple(IDL.Principal, Wallet)),
-    'state_or_province' : IDL.Text,
-    'first_name' : IDL.Text,
-    'last_name' : IDL.Text,
-    'member_identifier' : IDL.Principal,
-    'causes' : IDL.Vec(IDL.Nat32),
-    'code_of_conduct' : CodeOfConductDetails,
-    'date_of_birth' : IDL.Nat64,
-    'skills' : IDL.Vec(IDL.Nat32),
-    'relations' : IDL.Vec(IDL.Tuple(IDL.Principal, IDL.Text)),
-    'application_role' : ApplicationRole,
-  });
-  const Result_3 = IDL.Variant({ 'Ok' : IDL.Null, 'Err' : IDL.Null });
+  const Result_5 = IDL.Variant({ 'Ok' : IDL.Null, 'Err' : IDL.Null });
   return IDL.Service({
     '__get_candid_interface_tmp_hack' : IDL.Func([], [IDL.Text], ['query']),
     'accept_cycles' : IDL.Func([], [IDL.Nat64], []),
-    'add_entry_by_parent' : IDL.Func([IDL.Vec(IDL.Nat8)], [Result], []),
-    'add_profile' : IDL.Func([PostProfile, IDL.Principal], [Result_1], []),
-    'add_relation' : IDL.Func([IDL.Principal, RelationType], [Result_1], []),
-    'add_starred' : IDL.Func([IDL.Principal], [Result_1], []),
-    'add_wallet' : IDL.Func([PostWallet], [Result_1], []),
-    'approve_code_of_conduct' : IDL.Func([IDL.Nat64], [Result_2], []),
-    'edit_profile' : IDL.Func([UpdateProfile], [Result_1], []),
+    'accept_friend_request' : IDL.Func([IDL.Nat64], [Result], []),
+    'add_entry_by_parent' : IDL.Func([IDL.Vec(IDL.Nat8)], [Result_1], []),
+    'add_friend_request' : IDL.Func([IDL.Principal, IDL.Text], [Result_2], []),
+    'add_profile' : IDL.Func([PostProfile, IDL.Principal], [Result_3], []),
+    'add_starred' : IDL.Func([IDL.Principal], [Result_3], []),
+    'add_wallet' : IDL.Func([PostWallet], [Result_3], []),
+    'approve_code_of_conduct' : IDL.Func([IDL.Nat64], [Result_4], []),
+    'block_user' : IDL.Func([IDL.Principal], [Result_3], []),
+    'clear_backup' : IDL.Func([], [], []),
+    'clear_relations' : IDL.Func([IDL.Text], [IDL.Bool], []),
+    'decline_friend_request' : IDL.Func([IDL.Nat64], [Result], []),
+    'download_chunk' : IDL.Func(
+        [IDL.Nat64],
+        [IDL.Tuple(IDL.Nat64, IDL.Vec(IDL.Nat8))],
+        ['query'],
+      ),
+    'edit_profile' : IDL.Func([UpdateProfile], [Result_3], []),
+    'finalize_upload' : IDL.Func([], [IDL.Text], []),
     'get_chunked_data' : IDL.Func(
         [IDL.Vec(ProfileFilter), IDL.Nat64, IDL.Nat64],
         [IDL.Vec(IDL.Nat8), IDL.Tuple(IDL.Nat64, IDL.Nat64)],
         ['query'],
       ),
+    'get_friend_requests' : IDL.Func(
+        [],
+        [IDL.Vec(FriendRequestResponse)],
+        ['query'],
+      ),
     'get_profile_by_identifier' : IDL.Func(
         [IDL.Principal],
-        [Result_1],
+        [Result_3],
         ['query'],
       ),
     'get_profile_by_user_principal' : IDL.Func(
         [IDL.Principal],
-        [Result_1],
+        [Result_3],
         ['query'],
       ),
     'get_profiles_by_identifier' : IDL.Func(
@@ -241,15 +239,23 @@ export const idlFactory = ({ IDL }) => {
     'get_starred_groups' : IDL.Func([], [IDL.Vec(IDL.Principal)], ['query']),
     'get_starred_tasks' : IDL.Func([], [IDL.Vec(IDL.Principal)], ['query']),
     'http_request' : IDL.Func([HttpRequest], [HttpResponse], ['query']),
-    'migration_add_profiles' : IDL.Func(
-        [IDL.Vec(IDL.Tuple(IDL.Principal, Profile))],
+    'remove_friend' : IDL.Func([IDL.Principal], [Result], []),
+    'remove_friend_request' : IDL.Func(
+        [IDL.Principal, IDL.Nat64],
+        [Result],
+        [],
+      ),
+    'remove_starred' : IDL.Func([IDL.Principal], [Result_3], []),
+    'remove_wallet' : IDL.Func([IDL.Principal], [Result_3], []),
+    'restore_data' : IDL.Func([], [], []),
+    'set_wallet_as_primary' : IDL.Func([IDL.Principal], [Result_5], []),
+    'total_chunks' : IDL.Func([], [IDL.Nat64], ['query']),
+    'unblock_user' : IDL.Func([IDL.Principal], [Result_3], []),
+    'upload_chunk' : IDL.Func(
+        [IDL.Tuple(IDL.Nat64, IDL.Vec(IDL.Nat8))],
         [],
         [],
       ),
-    'remove_relation' : IDL.Func([IDL.Principal], [Result_1], []),
-    'remove_starred' : IDL.Func([IDL.Principal], [Result_1], []),
-    'remove_wallet' : IDL.Func([IDL.Principal], [Result_1], []),
-    'set_wallet_as_primary' : IDL.Func([IDL.Principal], [Result_3], []),
   });
 };
 export const init = ({ IDL }) => {

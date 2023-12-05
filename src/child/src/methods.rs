@@ -1,29 +1,16 @@
-use std::{collections::HashMap, iter::FromIterator};
-
-use candid::Principal;
+use candid::{candid_method, Principal};
 
 use ic_cdk::{caller, query, update};
-use ic_scalable_misc::enums::api_error_type::ApiError;
+use ic_scalable_canister::ic_scalable_misc::enums::api_error_type::ApiError;
 
 use shared::profile_models::{
-    PostProfile, PostWallet, Profile, ProfileFilter, ProfileResponse, RelationType, UpdateProfile,
+    FriendRequestResponse, PostProfile, PostWallet, ProfileFilter, ProfileResponse, RelationType,
+    UpdateProfile,
 };
 
-use super::store::{Store, DATA};
+use crate::store::STABLE_DATA;
 
-// temporary method to add profiles to the canister
-#[update]
-pub fn migration_add_profiles(profiles: Vec<(Principal, Profile)>) -> () {
-    if caller()
-        == Principal::from_text("ledm3-52ncq-rffuv-6ed44-hg5uo-iicyu-pwkzj-syfva-heo4k-p7itq-aqe")
-            .unwrap()
-    {
-        DATA.with(|data| {
-            data.borrow_mut().current_entry_id = profiles.clone().len() as u64;
-            data.borrow_mut().entries = HashMap::from_iter(profiles);
-        })
-    }
-}
+use super::store::Store;
 
 // This method is used to add a profile to the canister,
 // The method is async because it optionally creates a new canister is created
@@ -113,13 +100,55 @@ pub fn get_starred_groups() -> Vec<Principal> {
     Store::get_starred(caller(), "grp".to_string())
 }
 
-// This method adds a relation to the profile (Friend or Blocked)
 #[update]
-pub fn add_relation(
-    identifier: Principal,
-    relation_type: RelationType,
-) -> Result<ProfileResponse, ApiError> {
-    Store::add_relation(caller(), relation_type, identifier)
+#[candid_method(update)]
+pub fn add_friend_request(
+    principal: Principal,
+    message: String,
+) -> Result<FriendRequestResponse, ApiError> {
+    Store::add_friend_request(caller(), principal, message)
+}
+
+#[update]
+#[candid_method(update)]
+pub fn remove_friend(principal: Principal) -> Result<bool, String> {
+    Store::remove_friend(caller(), principal)
+}
+
+#[update]
+#[candid_method(update)]
+pub fn accept_friend_request(id: u64) -> Result<bool, String> {
+    Store::accept_friend_request(caller(), id)
+}
+
+#[update]
+#[candid_method(update)]
+pub fn remove_friend_request(principal: Principal, id: u64) -> Result<bool, String> {
+    Store::remove_friend_request(principal, id)
+}
+
+#[query]
+#[candid_method(query)]
+pub fn get_friend_requests() -> Vec<FriendRequestResponse> {
+    Store::get_friend_requests(caller())
+}
+
+#[update]
+#[candid_method(update)]
+pub fn decline_friend_request(id: u64) -> Result<bool, String> {
+    Store::decline_friend_request(caller(), id)
+}
+
+#[update]
+#[candid_method(update)]
+pub fn unblock_user(principal: Principal) -> Result<ProfileResponse, ApiError> {
+    Store::unblock_user(caller(), principal)
+}
+
+#[update]
+#[candid_method(update)]
+pub fn block_user(principal: Principal) -> Result<ProfileResponse, ApiError> {
+    Store::block_user(caller(), principal)
 }
 
 // This method is used to get all relations of a specific type (Friend or Blocked)
@@ -134,10 +163,14 @@ pub fn get_relations_count(principal: Principal, relation_type: RelationType) ->
     Store::get_relations(principal, relation_type).len() as u64
 }
 
-// This method is used to remove a relation from the profile
 #[update]
-pub fn remove_relation(identifier: Principal) -> Result<ProfileResponse, ApiError> {
-    Store::remove_relation(caller(), identifier)
+#[candid_method(update)]
+pub fn clear_relations(code: String) -> bool {
+    if code != "i_know_what_i_am_doing" {
+        return false;
+    } else {
+        return Store::clear_relations(caller());
+    }
 }
 
 // This method is used to approve the code of conduct for the specific caller
@@ -156,7 +189,7 @@ fn get_chunked_data(
     chunk: usize,
     max_bytes_per_chunk: usize,
 ) -> (Vec<u8>, (usize, usize)) {
-    if caller() != DATA.with(|data| data.borrow().parent) {
+    if caller() != STABLE_DATA.with(|data| data.borrow().get().parent) {
         return (vec![], (0, 0));
     }
 

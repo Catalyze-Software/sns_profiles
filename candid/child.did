@@ -38,6 +38,13 @@ type ErrorMessage = record {
   inputs : opt vec text;
   location : text;
 };
+type FriendRequestResponse = record {
+  id : nat64;
+  to : principal;
+  created_at : nat64;
+  requested_by : principal;
+  message : text;
+};
 type HttpHeader = record { value : text; name : text };
 type HttpRequest = record {
   url : text;
@@ -60,35 +67,6 @@ type PostProfile = record {
   last_name : text;
 };
 type PostWallet = record { "principal" : principal; provider : text };
-type Profile = record {
-  updated_on : nat64;
-  profile_image : Asset;
-  "principal" : principal;
-  banner_image : Asset;
-  about : text;
-  country : text;
-  username : text;
-  starred : vec record { principal; text };
-  interests : vec nat32;
-  city : text;
-  created_on : nat64;
-  email : text;
-  website : text;
-  display_name : text;
-  extra : text;
-  privacy : ProfilePrivacy;
-  wallets : vec record { principal; Wallet };
-  state_or_province : text;
-  first_name : text;
-  last_name : text;
-  member_identifier : principal;
-  causes : vec nat32;
-  code_of_conduct : CodeOfConductDetails;
-  date_of_birth : nat64;
-  skills : vec nat32;
-  relations : vec record { principal; text };
-  application_role : ApplicationRole;
-};
 type ProfileFilter = variant {
   Interest : nat32;
   Email : text;
@@ -134,10 +112,12 @@ type ProfileResponse = record {
   application_role : ApplicationRole;
 };
 type RelationType = variant { Blocked; Friend };
-type Result = variant { Ok; Err : ApiError };
-type Result_1 = variant { Ok : ProfileResponse; Err : ApiError };
-type Result_2 = variant { Ok : bool; Err : ApiError };
-type Result_3 = variant { Ok; Err };
+type Result = variant { Ok : bool; Err : text };
+type Result_1 = variant { Ok; Err : ApiError };
+type Result_2 = variant { Ok : FriendRequestResponse; Err : ApiError };
+type Result_3 = variant { Ok : ProfileResponse; Err : ApiError };
+type Result_4 = variant { Ok : bool; Err : ApiError };
+type Result_5 = variant { Ok; Err };
 type UpdateMessage = record { canister_principal : principal; message : text };
 type UpdateProfile = record {
   profile_image : Asset;
@@ -159,7 +139,6 @@ type UpdateProfile = record {
   skills : vec nat32;
 };
 type ValidationResponse = record { field : text; message : text };
-type Wallet = record { provider : text; is_primary : bool };
 type WalletResponse = record {
   "principal" : principal;
   provider : text;
@@ -168,19 +147,27 @@ type WalletResponse = record {
 service : (principal, text, nat64) -> {
   __get_candid_interface_tmp_hack : () -> (text) query;
   accept_cycles : () -> (nat64);
-  add_entry_by_parent : (vec nat8) -> (Result);
-  add_profile : (PostProfile, principal) -> (Result_1);
-  add_relation : (principal, RelationType) -> (Result_1);
-  add_starred : (principal) -> (Result_1);
-  add_wallet : (PostWallet) -> (Result_1);
-  approve_code_of_conduct : (nat64) -> (Result_2);
-  edit_profile : (UpdateProfile) -> (Result_1);
+  accept_friend_request : (nat64) -> (Result);
+  add_entry_by_parent : (vec nat8) -> (Result_1);
+  add_friend_request : (principal, text) -> (Result_2);
+  add_profile : (PostProfile, principal) -> (Result_3);
+  add_starred : (principal) -> (Result_3);
+  add_wallet : (PostWallet) -> (Result_3);
+  approve_code_of_conduct : (nat64) -> (Result_4);
+  block_user : (principal) -> (Result_3);
+  clear_backup : () -> ();
+  clear_relations : (text) -> (bool);
+  decline_friend_request : (nat64) -> (Result);
+  download_chunk : (nat64) -> (record { nat64; vec nat8 }) query;
+  edit_profile : (UpdateProfile) -> (Result_3);
+  finalize_upload : () -> (text);
   get_chunked_data : (vec ProfileFilter, nat64, nat64) -> (
       vec nat8,
       record { nat64; nat64 },
     ) query;
-  get_profile_by_identifier : (principal) -> (Result_1) query;
-  get_profile_by_user_principal : (principal) -> (Result_1) query;
+  get_friend_requests : () -> (vec FriendRequestResponse) query;
+  get_profile_by_identifier : (principal) -> (Result_3) query;
+  get_profile_by_user_principal : (principal) -> (Result_3) query;
   get_profiles_by_identifier : (vec principal) -> (vec ProfileResponse) query;
   get_profiles_by_user_principal : (vec principal) -> (
       vec ProfileResponse,
@@ -191,9 +178,13 @@ service : (principal, text, nat64) -> {
   get_starred_groups : () -> (vec principal) query;
   get_starred_tasks : () -> (vec principal) query;
   http_request : (HttpRequest) -> (HttpResponse) query;
-  migration_add_profiles : (vec record { principal; Profile }) -> ();
-  remove_relation : (principal) -> (Result_1);
-  remove_starred : (principal) -> (Result_1);
-  remove_wallet : (principal) -> (Result_1);
-  set_wallet_as_primary : (principal) -> (Result_3);
+  remove_friend : (principal) -> (Result);
+  remove_friend_request : (principal, nat64) -> (Result);
+  remove_starred : (principal) -> (Result_3);
+  remove_wallet : (principal) -> (Result_3);
+  restore_data : () -> ();
+  set_wallet_as_primary : (principal) -> (Result_5);
+  total_chunks : () -> (nat64) query;
+  unblock_user : (principal) -> (Result_3);
+  upload_chunk : (record { nat64; vec nat8 }) -> ();
 }

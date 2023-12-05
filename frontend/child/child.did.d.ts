@@ -41,6 +41,13 @@ export interface ErrorMessage {
   'inputs' : [] | [Array<string>],
   'location' : string,
 }
+export interface FriendRequestResponse {
+  'id' : bigint,
+  'to' : Principal,
+  'created_at' : bigint,
+  'requested_by' : Principal,
+  'message' : string,
+}
 export interface HttpHeader { 'value' : string, 'name' : string }
 export interface HttpRequest {
   'url' : string,
@@ -63,35 +70,6 @@ export interface PostProfile {
   'last_name' : string,
 }
 export interface PostWallet { 'principal' : Principal, 'provider' : string }
-export interface Profile {
-  'updated_on' : bigint,
-  'profile_image' : Asset,
-  'principal' : Principal,
-  'banner_image' : Asset,
-  'about' : string,
-  'country' : string,
-  'username' : string,
-  'starred' : Array<[Principal, string]>,
-  'interests' : Uint32Array | number[],
-  'city' : string,
-  'created_on' : bigint,
-  'email' : string,
-  'website' : string,
-  'display_name' : string,
-  'extra' : string,
-  'privacy' : ProfilePrivacy,
-  'wallets' : Array<[Principal, Wallet]>,
-  'state_or_province' : string,
-  'first_name' : string,
-  'last_name' : string,
-  'member_identifier' : Principal,
-  'causes' : Uint32Array | number[],
-  'code_of_conduct' : CodeOfConductDetails,
-  'date_of_birth' : bigint,
-  'skills' : Uint32Array | number[],
-  'relations' : Array<[Principal, string]>,
-  'application_role' : ApplicationRole,
-}
 export type ProfileFilter = { 'Interest' : number } |
   { 'Email' : string } |
   { 'Skill' : number } |
@@ -137,13 +115,17 @@ export interface ProfileResponse {
 }
 export type RelationType = { 'Blocked' : null } |
   { 'Friend' : null };
-export type Result = { 'Ok' : null } |
+export type Result = { 'Ok' : boolean } |
+  { 'Err' : string };
+export type Result_1 = { 'Ok' : null } |
   { 'Err' : ApiError };
-export type Result_1 = { 'Ok' : ProfileResponse } |
+export type Result_2 = { 'Ok' : FriendRequestResponse } |
   { 'Err' : ApiError };
-export type Result_2 = { 'Ok' : boolean } |
+export type Result_3 = { 'Ok' : ProfileResponse } |
   { 'Err' : ApiError };
-export type Result_3 = { 'Ok' : null } |
+export type Result_4 = { 'Ok' : boolean } |
+  { 'Err' : ApiError };
+export type Result_5 = { 'Ok' : null } |
   { 'Err' : null };
 export interface UpdateMessage {
   'canister_principal' : Principal,
@@ -169,7 +151,6 @@ export interface UpdateProfile {
   'skills' : Uint32Array | number[],
 }
 export interface ValidationResponse { 'field' : string, 'message' : string }
-export interface Wallet { 'provider' : string, 'is_primary' : boolean }
 export interface WalletResponse {
   'principal' : Principal,
   'provider' : string,
@@ -178,19 +159,27 @@ export interface WalletResponse {
 export interface _SERVICE {
   '__get_candid_interface_tmp_hack' : ActorMethod<[], string>,
   'accept_cycles' : ActorMethod<[], bigint>,
-  'add_entry_by_parent' : ActorMethod<[Uint8Array | number[]], Result>,
-  'add_profile' : ActorMethod<[PostProfile, Principal], Result_1>,
-  'add_relation' : ActorMethod<[Principal, RelationType], Result_1>,
-  'add_starred' : ActorMethod<[Principal], Result_1>,
-  'add_wallet' : ActorMethod<[PostWallet], Result_1>,
-  'approve_code_of_conduct' : ActorMethod<[bigint], Result_2>,
-  'edit_profile' : ActorMethod<[UpdateProfile], Result_1>,
+  'accept_friend_request' : ActorMethod<[bigint], Result>,
+  'add_entry_by_parent' : ActorMethod<[Uint8Array | number[]], Result_1>,
+  'add_friend_request' : ActorMethod<[Principal, string], Result_2>,
+  'add_profile' : ActorMethod<[PostProfile, Principal], Result_3>,
+  'add_starred' : ActorMethod<[Principal], Result_3>,
+  'add_wallet' : ActorMethod<[PostWallet], Result_3>,
+  'approve_code_of_conduct' : ActorMethod<[bigint], Result_4>,
+  'block_user' : ActorMethod<[Principal], Result_3>,
+  'clear_backup' : ActorMethod<[], undefined>,
+  'clear_relations' : ActorMethod<[string], boolean>,
+  'decline_friend_request' : ActorMethod<[bigint], Result>,
+  'download_chunk' : ActorMethod<[bigint], [bigint, Uint8Array | number[]]>,
+  'edit_profile' : ActorMethod<[UpdateProfile], Result_3>,
+  'finalize_upload' : ActorMethod<[], string>,
   'get_chunked_data' : ActorMethod<
     [Array<ProfileFilter>, bigint, bigint],
     [Uint8Array | number[], [bigint, bigint]]
   >,
-  'get_profile_by_identifier' : ActorMethod<[Principal], Result_1>,
-  'get_profile_by_user_principal' : ActorMethod<[Principal], Result_1>,
+  'get_friend_requests' : ActorMethod<[], Array<FriendRequestResponse>>,
+  'get_profile_by_identifier' : ActorMethod<[Principal], Result_3>,
+  'get_profile_by_user_principal' : ActorMethod<[Principal], Result_3>,
   'get_profiles_by_identifier' : ActorMethod<
     [Array<Principal>],
     Array<ProfileResponse>
@@ -205,12 +194,13 @@ export interface _SERVICE {
   'get_starred_groups' : ActorMethod<[], Array<Principal>>,
   'get_starred_tasks' : ActorMethod<[], Array<Principal>>,
   'http_request' : ActorMethod<[HttpRequest], HttpResponse>,
-  'migration_add_profiles' : ActorMethod<
-    [Array<[Principal, Profile]>],
-    undefined
-  >,
-  'remove_relation' : ActorMethod<[Principal], Result_1>,
-  'remove_starred' : ActorMethod<[Principal], Result_1>,
-  'remove_wallet' : ActorMethod<[Principal], Result_1>,
-  'set_wallet_as_primary' : ActorMethod<[Principal], Result_3>,
+  'remove_friend' : ActorMethod<[Principal], Result>,
+  'remove_friend_request' : ActorMethod<[Principal, bigint], Result>,
+  'remove_starred' : ActorMethod<[Principal], Result_3>,
+  'remove_wallet' : ActorMethod<[Principal], Result_3>,
+  'restore_data' : ActorMethod<[], undefined>,
+  'set_wallet_as_primary' : ActorMethod<[Principal], Result_5>,
+  'total_chunks' : ActorMethod<[], bigint>,
+  'unblock_user' : ActorMethod<[Principal], Result_3>,
+  'upload_chunk' : ActorMethod<[[bigint, Uint8Array | number[]]], undefined>,
 }
