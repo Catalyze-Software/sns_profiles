@@ -119,6 +119,38 @@ export const idlFactory = ({ IDL }) => {
     'provider' : IDL.Text,
   });
   const Result_4 = IDL.Variant({ 'Ok' : IDL.Bool, 'Err' : ApiError });
+  const CanisterStatusType = IDL.Variant({
+    'stopped' : IDL.Null,
+    'stopping' : IDL.Null,
+    'running' : IDL.Null,
+  });
+  const DefiniteCanisterSettings = IDL.Record({
+    'freezing_threshold' : IDL.Nat,
+    'controllers' : IDL.Vec(IDL.Principal),
+    'memory_allocation' : IDL.Nat,
+    'compute_allocation' : IDL.Nat,
+  });
+  const CanisterStatusResponse = IDL.Record({
+    'status' : CanisterStatusType,
+    'memory_size' : IDL.Nat,
+    'cycles' : IDL.Nat,
+    'settings' : DefiniteCanisterSettings,
+    'idle_cycles_burned_per_day' : IDL.Nat,
+    'module_hash' : IDL.Opt(IDL.Vec(IDL.Nat8)),
+  });
+  const RejectionCode = IDL.Variant({
+    'NoError' : IDL.Null,
+    'CanisterError' : IDL.Null,
+    'SysTransient' : IDL.Null,
+    'DestinationInvalid' : IDL.Null,
+    'Unknown' : IDL.Null,
+    'SysFatal' : IDL.Null,
+    'CanisterReject' : IDL.Null,
+  });
+  const Result_5 = IDL.Variant({
+    'Ok' : IDL.Tuple(CanisterStatusResponse),
+    'Err' : IDL.Tuple(RejectionCode, IDL.Text),
+  });
   const UpdateProfile = IDL.Record({
     'profile_image' : Asset,
     'banner_image' : Asset,
@@ -173,7 +205,7 @@ export const idlFactory = ({ IDL }) => {
     'body' : IDL.Vec(IDL.Nat8),
     'headers' : IDL.Vec(HttpHeader),
   });
-  const Result_5 = IDL.Variant({ 'Ok' : IDL.Null, 'Err' : IDL.Null });
+  const Result_6 = IDL.Variant({ 'Ok' : IDL.Null, 'Err' : IDL.Null });
   return IDL.Service({
     '__get_candid_interface_tmp_hack' : IDL.Func([], [IDL.Text], ['query']),
     'accept_cycles' : IDL.Func([], [IDL.Nat64], []),
@@ -185,6 +217,7 @@ export const idlFactory = ({ IDL }) => {
     'add_wallet' : IDL.Func([PostWallet], [Result_3], []),
     'approve_code_of_conduct' : IDL.Func([IDL.Nat64], [Result_4], []),
     'block_user' : IDL.Func([IDL.Principal], [Result_3], []),
+    'canister_status' : IDL.Func([], [Result_5], []),
     'clear_backup' : IDL.Func([], [], []),
     'clear_relations' : IDL.Func([IDL.Text], [IDL.Bool], []),
     'decline_friend_request' : IDL.Func([IDL.Nat64], [Result], []),
@@ -248,7 +281,7 @@ export const idlFactory = ({ IDL }) => {
     'remove_starred' : IDL.Func([IDL.Principal], [Result_3], []),
     'remove_wallet' : IDL.Func([IDL.Principal], [Result_3], []),
     'restore_data' : IDL.Func([], [], []),
-    'set_wallet_as_primary' : IDL.Func([IDL.Principal], [Result_5], []),
+    'set_wallet_as_primary' : IDL.Func([IDL.Principal], [Result_6], []),
     'total_chunks' : IDL.Func([], [IDL.Nat64], ['query']),
     'unblock_user' : IDL.Func([IDL.Principal], [Result_3], []),
     'upload_chunk' : IDL.Func(

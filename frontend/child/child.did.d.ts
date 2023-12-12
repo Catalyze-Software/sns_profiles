@@ -22,6 +22,17 @@ export type ApplicationRole = { 'Blocked' : null } |
 export type Asset = { 'Url' : string } |
   { 'None' : null } |
   { 'CanisterStorage' : CanisterStorage };
+export interface CanisterStatusResponse {
+  'status' : CanisterStatusType,
+  'memory_size' : bigint,
+  'cycles' : bigint,
+  'settings' : DefiniteCanisterSettings,
+  'idle_cycles_burned_per_day' : bigint,
+  'module_hash' : [] | [Uint8Array | number[]],
+}
+export type CanisterStatusType = { 'stopped' : null } |
+  { 'stopping' : null } |
+  { 'running' : null };
 export type CanisterStorage = { 'None' : null } |
   { 'Manifest' : Manifest } |
   { 'Chunk' : ChunkData };
@@ -35,6 +46,12 @@ export interface CodeOfConductDetails {
   'approved_version' : bigint,
 }
 export interface DateRange { 'end_date' : bigint, 'start_date' : bigint }
+export interface DefiniteCanisterSettings {
+  'freezing_threshold' : bigint,
+  'controllers' : Array<Principal>,
+  'memory_allocation' : bigint,
+  'compute_allocation' : bigint,
+}
 export interface ErrorMessage {
   'tag' : string,
   'message' : string,
@@ -113,6 +130,13 @@ export interface ProfileResponse {
   'skills' : Uint32Array | number[],
   'application_role' : ApplicationRole,
 }
+export type RejectionCode = { 'NoError' : null } |
+  { 'CanisterError' : null } |
+  { 'SysTransient' : null } |
+  { 'DestinationInvalid' : null } |
+  { 'Unknown' : null } |
+  { 'SysFatal' : null } |
+  { 'CanisterReject' : null };
 export type RelationType = { 'Blocked' : null } |
   { 'Friend' : null };
 export type Result = { 'Ok' : boolean } |
@@ -125,7 +149,9 @@ export type Result_3 = { 'Ok' : ProfileResponse } |
   { 'Err' : ApiError };
 export type Result_4 = { 'Ok' : boolean } |
   { 'Err' : ApiError };
-export type Result_5 = { 'Ok' : null } |
+export type Result_5 = { 'Ok' : [CanisterStatusResponse] } |
+  { 'Err' : [RejectionCode, string] };
+export type Result_6 = { 'Ok' : null } |
   { 'Err' : null };
 export interface UpdateMessage {
   'canister_principal' : Principal,
@@ -167,6 +193,7 @@ export interface _SERVICE {
   'add_wallet' : ActorMethod<[PostWallet], Result_3>,
   'approve_code_of_conduct' : ActorMethod<[bigint], Result_4>,
   'block_user' : ActorMethod<[Principal], Result_3>,
+  'canister_status' : ActorMethod<[], Result_5>,
   'clear_backup' : ActorMethod<[], undefined>,
   'clear_relations' : ActorMethod<[string], boolean>,
   'decline_friend_request' : ActorMethod<[bigint], Result>,
@@ -199,7 +226,7 @@ export interface _SERVICE {
   'remove_starred' : ActorMethod<[Principal], Result_3>,
   'remove_wallet' : ActorMethod<[Principal], Result_3>,
   'restore_data' : ActorMethod<[], undefined>,
-  'set_wallet_as_primary' : ActorMethod<[Principal], Result_5>,
+  'set_wallet_as_primary' : ActorMethod<[Principal], Result_6>,
   'total_chunks' : ActorMethod<[], bigint>,
   'unblock_user' : ActorMethod<[Principal], Result_3>,
   'upload_chunk' : ActorMethod<[[bigint, Uint8Array | number[]]], undefined>,
