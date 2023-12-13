@@ -149,6 +149,6 @@ service : () -> {
   get_latest_wasm_version : () -> (WasmVersion) query;
   get_profiles : (nat64, nat64, vec ProfileFilter, FilterType, ProfileSort) -> (
       PagedResponse,
-    ) query;
+    ) composite_query;
   http_request : (HttpRequest) -> (HttpResponse) query;
 }
