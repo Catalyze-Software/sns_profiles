@@ -1,4 +1,3 @@
-use candid::candid_method;
 use ic_cdk::query;
 use ic_scalable_misc::{
     enums::filter_type::FilterType, models::paged_response_models::PagedResponse,
@@ -11,7 +10,6 @@ use super::store::ScalableData;
 // Method used to get all the profiles from the child canisters filtered, sorted and paged
 // requires composite queries to be released to mainnet
 #[query(composite = true)]
-#[candid_method(query)]
 async fn get_profiles(
     limit: usize,
     page: usize,

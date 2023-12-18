@@ -21,6 +21,15 @@ type ApplicationRole = variant {
   Watcher;
 };
 type Asset = variant { Url : text; None; CanisterStorage : CanisterStorage };
+type CanisterStatusResponse = record {
+  status : CanisterStatusType;
+  memory_size : nat;
+  cycles : nat;
+  settings : DefiniteCanisterSettings;
+  idle_cycles_burned_per_day : nat;
+  module_hash : opt vec nat8;
+};
+type CanisterStatusType = variant { stopped; stopping; running };
 type CanisterStorage = variant { None; Manifest : Manifest; Chunk : ChunkData };
 type ChunkData = record {
   chunk_id : nat64;
@@ -32,6 +41,12 @@ type CodeOfConductDetails = record {
   approved_version : nat64;
 };
 type DateRange = record { end_date : nat64; start_date : nat64 };
+type DefiniteCanisterSettings = record {
+  freezing_threshold : nat;
+  controllers : vec principal;
+  memory_allocation : nat;
+  compute_allocation : nat;
+};
 type ErrorMessage = record {
   tag : text;
   message : text;
@@ -67,35 +82,6 @@ type PostProfile = record {
   last_name : text;
 };
 type PostWallet = record { "principal" : principal; provider : text };
-type Profile = record {
-  updated_on : nat64;
-  profile_image : Asset;
-  "principal" : principal;
-  banner_image : Asset;
-  about : text;
-  country : text;
-  username : text;
-  starred : vec record { principal; text };
-  interests : vec nat32;
-  city : text;
-  created_on : nat64;
-  email : text;
-  website : text;
-  display_name : text;
-  extra : text;
-  privacy : ProfilePrivacy;
-  wallets : vec record { principal; Wallet };
-  state_or_province : text;
-  first_name : text;
-  last_name : text;
-  member_identifier : principal;
-  causes : vec nat32;
-  code_of_conduct : CodeOfConductDetails;
-  date_of_birth : nat64;
-  skills : vec nat32;
-  relations : vec record { principal; text };
-  application_role : ApplicationRole;
-};
 type ProfileFilter = variant {
   Interest : nat32;
   Email : text;
@@ -140,13 +126,26 @@ type ProfileResponse = record {
   skills : vec nat32;
   application_role : ApplicationRole;
 };
+type RejectionCode = variant {
+  NoError;
+  CanisterError;
+  SysTransient;
+  DestinationInvalid;
+  Unknown;
+  SysFatal;
+  CanisterReject;
+};
 type RelationType = variant { Blocked; Friend };
 type Result = variant { Ok : bool; Err : text };
 type Result_1 = variant { Ok; Err : ApiError };
 type Result_2 = variant { Ok : FriendRequestResponse; Err : ApiError };
 type Result_3 = variant { Ok : ProfileResponse; Err : ApiError };
 type Result_4 = variant { Ok : bool; Err : ApiError };
-type Result_5 = variant { Ok; Err };
+type Result_5 = variant {
+  Ok : record { CanisterStatusResponse };
+  Err : record { RejectionCode; text };
+};
+type Result_6 = variant { Ok; Err };
 type UpdateMessage = record { canister_principal : principal; message : text };
 type UpdateProfile = record {
   profile_image : Asset;
@@ -168,7 +167,6 @@ type UpdateProfile = record {
   skills : vec nat32;
 };
 type ValidationResponse = record { field : text; message : text };
-type Wallet = record { provider : text; is_primary : bool };
 type WalletResponse = record {
   "principal" : principal;
   provider : text;
@@ -184,8 +182,8 @@ service : (principal, text, nat64) -> {
   add_starred : (principal) -> (Result_3);
   add_wallet : (PostWallet) -> (Result_3);
   approve_code_of_conduct : (nat64) -> (Result_4);
-  backup_data : () -> (text);
   block_user : (principal) -> (Result_3);
+  canister_status : () -> (Result_5);
   clear_backup : () -> ();
   clear_relations : (text) -> (bool);
   decline_friend_request : (nat64) -> (Result);
@@ -209,13 +207,12 @@ service : (principal, text, nat64) -> {
   get_starred_groups : () -> (vec principal) query;
   get_starred_tasks : () -> (vec principal) query;
   http_request : (HttpRequest) -> (HttpResponse) query;
-  migration_add_profiles : (vec record { principal; Profile }) -> ();
   remove_friend : (principal) -> (Result);
   remove_friend_request : (principal, nat64) -> (Result);
   remove_starred : (principal) -> (Result_3);
   remove_wallet : (principal) -> (Result_3);
   restore_data : () -> ();
-  set_wallet_as_primary : (principal) -> (Result_5);
+  set_wallet_as_primary : (principal) -> (Result_6);
   total_chunks : () -> (nat64) query;
   unblock_user : (principal) -> (Result_3);
   upload_chunk : (record { nat64; vec nat8 }) -> ();
