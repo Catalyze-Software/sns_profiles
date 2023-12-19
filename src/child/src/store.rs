@@ -20,6 +20,7 @@ use ic_scalable_canister::ic_scalable_misc::{
     models::paged_response_models::PagedResponse,
 };
 
+use serde_json::json;
 use shared::profile_models::{
     CodeOfConductDetails, FriendRequest, FriendRequestResponse, PostProfile, PostWallet, Profile,
     ProfileFilter, ProfileResponse, ProfileSort, RelationType, UpdateProfile, Wallet,
@@ -1157,12 +1158,28 @@ impl Store {
 
             let request = FriendRequest {
                 requested_by,
-                message,
+                message: message.clone(),
                 to,
                 created_at: time(),
             };
 
             requests.insert(id.clone(), request.clone());
+            let display_name = ENTRIES.with(|data| {
+                Data::get_entries(data)
+                    .iter()
+                    .find(|(_, p)| p.principal == requested_by)
+                    .unwrap()
+                    .1
+                    .display_name
+                    .clone()
+            });
+
+            let metadata = json!({
+                "receivedBy": display_name,
+                "receivedByPrincipal": requested_by.to_string(),
+                "message": message,
+                "isProcessed": false,
+            });
 
             Self::send_notification().friend_request_notification(
                 requested_by.clone(),
@@ -1172,6 +1189,7 @@ impl Store {
                     to,
                     accepted: None,
                 },
+                metadata.to_string(),
             );
 
             Ok(FriendRequestResponse {
@@ -1294,7 +1312,7 @@ impl Store {
             });
         });
 
-        Self::send_notification().friend_remove_notification(caller, to_remove);
+        Self::send_notification().friend_remove_notification(caller, to_remove, "{}".to_string());
 
         Ok(true)
     }
