@@ -217,11 +217,22 @@ export const idlFactory = ({ IDL }) => {
     'add_wallet' : IDL.Func([PostWallet], [Result_3], []),
     'approve_code_of_conduct' : IDL.Func([IDL.Nat64], [Result_4], []),
     'block_user' : IDL.Func([IDL.Principal], [Result_3], []),
+    'canister_backup_data' : IDL.Func([], [IDL.Text, IDL.Text], []),
     'canister_status' : IDL.Func([], [Result_5], []),
     'clear_backup' : IDL.Func([], [], []),
     'clear_relations' : IDL.Func([IDL.Text], [IDL.Bool], []),
     'decline_friend_request' : IDL.Func([IDL.Nat64], [Result], []),
     'download_chunk' : IDL.Func(
+        [IDL.Nat64],
+        [IDL.Tuple(IDL.Nat64, IDL.Vec(IDL.Nat8))],
+        ['query'],
+      ),
+    'download_entries_chunk' : IDL.Func(
+        [IDL.Nat64],
+        [IDL.Tuple(IDL.Nat64, IDL.Vec(IDL.Nat8))],
+        ['query'],
+      ),
+    'download_stable_data_chunk' : IDL.Func(
         [IDL.Nat64],
         [IDL.Tuple(IDL.Nat64, IDL.Vec(IDL.Nat8))],
         ['query'],
@@ -283,6 +294,8 @@ export const idlFactory = ({ IDL }) => {
     'restore_data' : IDL.Func([], [], []),
     'set_wallet_as_primary' : IDL.Func([IDL.Principal], [Result_6], []),
     'total_chunks' : IDL.Func([], [IDL.Nat64], ['query']),
+    'total_entries_chunks' : IDL.Func([], [IDL.Nat64], ['query']),
+    'total_stable_data_chunks' : IDL.Func([], [IDL.Nat64], ['query']),
     'unblock_user' : IDL.Func([IDL.Principal], [Result_3], []),
     'upload_chunk' : IDL.Func(
         [IDL.Tuple(IDL.Nat64, IDL.Vec(IDL.Nat8))],
