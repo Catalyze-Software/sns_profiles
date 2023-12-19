@@ -1,7 +1,10 @@
 use std::collections::HashMap;
 
 use candid::Principal;
+use ic_catalyze_notifications::models::{Environment, FriendRequestNotificationData};
+use ic_catalyze_notifications::store::Notification;
 use ic_cdk::api::{call, time};
+use ic_cdk::id;
 use ic_scalable_canister::store::Data;
 
 use ic_scalable_canister::ic_scalable_misc::helpers::serialize_helper::serialize;
@@ -1160,6 +1163,17 @@ impl Store {
             };
 
             requests.insert(id.clone(), request.clone());
+
+            Self::send_notification().friend_request_notification(
+                requested_by.clone(),
+                FriendRequestNotificationData {
+                    friend_request_id: id.clone(),
+                    from: requested_by.clone(),
+                    to,
+                    accepted: None,
+                },
+            );
+
             Ok(FriendRequestResponse {
                 id,
                 requested_by,
@@ -1279,6 +1293,8 @@ impl Store {
                 );
             });
         });
+
+        Self::send_notification().friend_remove_notification(caller, to_remove);
 
         Ok(true)
     }
@@ -1409,5 +1425,25 @@ impl Store {
                     )
             }
         }
+    }
+
+    fn get_environment() -> Option<Environment> {
+        let canister_id = id().to_string();
+        if canister_id == "4vy4w-gaaaa-aaaap-aa4pa-cai".to_string() {
+            return Some(Environment::Production);
+        }
+        if canister_id == "5ycyv-iiaaa-aaaap-abgia-cai" {
+            return Some(Environment::Staging);
+        }
+        if canister_id == "crorp-uaaaa-aaaap-abqwq-cai" {
+            return Some(Environment::Development);
+        } else {
+            return None;
+        }
+    }
+
+    fn send_notification() -> Notification {
+        let environment = Self::get_environment().expect("Environment not found");
+        Notification::new(environment)
     }
 }
