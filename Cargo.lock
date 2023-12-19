@@ -173,6 +173,7 @@ dependencies = [
  "ic_catalyze_notifications",
  "ic_scalable_canister",
  "serde",
+ "serde_cbor",
  "serde_json",
  "shared",
 ]

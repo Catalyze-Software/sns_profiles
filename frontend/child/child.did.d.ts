@@ -193,11 +193,20 @@ export interface _SERVICE {
   'add_wallet' : ActorMethod<[PostWallet], Result_3>,
   'approve_code_of_conduct' : ActorMethod<[bigint], Result_4>,
   'block_user' : ActorMethod<[Principal], Result_3>,
+  'canister_backup_data' : ActorMethod<[], [string, string]>,
   'canister_status' : ActorMethod<[], Result_5>,
   'clear_backup' : ActorMethod<[], undefined>,
   'clear_relations' : ActorMethod<[string], boolean>,
   'decline_friend_request' : ActorMethod<[bigint], Result>,
   'download_chunk' : ActorMethod<[bigint], [bigint, Uint8Array | number[]]>,
+  'download_entries_chunk' : ActorMethod<
+    [bigint],
+    [bigint, Uint8Array | number[]]
+  >,
+  'download_stable_data_chunk' : ActorMethod<
+    [bigint],
+    [bigint, Uint8Array | number[]]
+  >,
   'edit_profile' : ActorMethod<[UpdateProfile], Result_3>,
   'finalize_upload' : ActorMethod<[], string>,
   'get_chunked_data' : ActorMethod<
@@ -228,6 +237,8 @@ export interface _SERVICE {
   'restore_data' : ActorMethod<[], undefined>,
   'set_wallet_as_primary' : ActorMethod<[Principal], Result_6>,
   'total_chunks' : ActorMethod<[], bigint>,
+  'total_entries_chunks' : ActorMethod<[], bigint>,
+  'total_stable_data_chunks' : ActorMethod<[], bigint>,
   'unblock_user' : ActorMethod<[Principal], Result_3>,
   'upload_chunk' : ActorMethod<[[bigint, Uint8Array | number[]]], undefined>,
 }
