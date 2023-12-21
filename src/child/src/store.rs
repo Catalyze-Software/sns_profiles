@@ -1164,15 +1164,9 @@ impl Store {
             };
 
             requests.insert(id.clone(), request.clone());
-            let display_name = ENTRIES.with(|data| {
-                Data::get_entries(data)
-                    .iter()
-                    .find(|(_, p)| p.principal == requested_by)
-                    .unwrap()
-                    .1
-                    .display_name
-                    .clone()
-            });
+
+            let display_name = Self::get_profile_by_user_principal(requested_by)
+                .map_or("unknown".to_string(), |p| p.display_name);
 
             let metadata = json!({
                 "receivedBy": display_name,
@@ -1263,12 +1257,31 @@ impl Store {
                         let _ = Data::update_entry(
                             data,
                             entries,
-                            Principal::from_text(to_profile.0).unwrap(),
-                            to_profile.1,
+                            Principal::from_text(to_profile.0.clone()).unwrap(),
+                            to_profile.1.clone(),
                         );
                     });
                 });
                 requests.remove(&id);
+
+                let display_name = Self::get_profile_by_user_principal(caller)
+                    .map_or("unknown".to_string(), |p| p.display_name);
+
+                let metadata = json!({
+                    "acceptedBy": display_name,
+                    "acceptedByPrincipal": caller.to_string(),
+                });
+
+                Self::send_notification().friend_request_notification(
+                    request.requested_by.clone(),
+                    FriendRequestNotificationData {
+                        friend_request_id: id.clone(),
+                        from: request.requested_by.clone(),
+                        to: request.to.clone(),
+                        accepted: Some(true),
+                    },
+                    metadata.to_string(),
+                );
                 return Ok(true);
             }
 
@@ -1348,6 +1361,25 @@ impl Store {
 
             if let Some(request) = requests.get(&id) {
                 if request.to == caller {
+                    let display_name = Self::get_profile_by_user_principal(caller)
+                        .map_or("unknown".to_string(), |p| p.display_name);
+
+                    let metadata = json!({
+                        "declinedBy": display_name,
+                        "declinedByPrincipal": caller.to_string(),
+                    });
+
+                    Self::send_notification().friend_request_notification(
+                        request.requested_by.clone(),
+                        FriendRequestNotificationData {
+                            friend_request_id: id.clone(),
+                            from: request.requested_by.clone(),
+                            to: request.to.clone(),
+                            accepted: Some(false),
+                        },
+                        metadata.to_string(),
+                    );
+
                     requests.remove(&id);
                     return Ok(true);
                 }
