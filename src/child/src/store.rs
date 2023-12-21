@@ -1183,6 +1183,7 @@ impl Store {
                     to,
                     accepted: None,
                 },
+                vec![to.clone()],
                 metadata.to_string(),
             );
 
@@ -1280,6 +1281,7 @@ impl Store {
                         to: request.to.clone(),
                         accepted: Some(true),
                     },
+                    vec![request.requested_by],
                     metadata.to_string(),
                 );
                 return Ok(true);
@@ -1377,6 +1379,7 @@ impl Store {
                             to: request.to.clone(),
                             accepted: Some(false),
                         },
+                        vec![request.requested_by],
                         metadata.to_string(),
                     );
 
