@@ -541,9 +541,9 @@ dependencies = [
 
 [[package]]
 name = "ic_catalyze_notifications"
-version = "0.0.1-beta.4"
+version = "0.0.1-beta.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ba7af0fa4e7a608e26e4e83e732dac1d587c6562c2ec9784521f23a30632bc13"
+checksum = "61dd6da315f9268352200fc1b4b182adc344f8bb353088981b06cd40a15835a5"
 dependencies = [
  "candid",
  "ic-cdk 0.11.3",

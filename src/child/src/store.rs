@@ -1327,7 +1327,7 @@ impl Store {
             });
         });
 
-        Self::send_notification().friend_remove_notification(caller, to_remove, "{}".to_string());
+        Self::send_notification().friend_remove_notification(to_remove, "{}".to_string());
 
         Ok(true)
     }
