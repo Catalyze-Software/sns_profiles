@@ -184,6 +184,8 @@ service : (principal, text, nat64) -> {
   add_starred : (principal) -> (Result_3);
   add_wallet : (PostWallet) -> (Result_3);
   approve_code_of_conduct : (nat64) -> (Result_4);
+  approve_privacy_policy : (nat64) -> (Result_4);
+  approve_terms_of_service : (nat64) -> (Result_4);
   block_user : (principal) -> (Result_3);
   canister_backup_data : () -> (text, text);
   canister_status : () -> (Result_5);

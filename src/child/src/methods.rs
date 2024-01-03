@@ -170,6 +170,18 @@ pub fn approve_code_of_conduct(version: u64) -> Result<bool, ApiError> {
     Store::approve_code_of_conduct(caller(), version)
 }
 
+// This method is used to approve the approve privacy policy for the specific caller
+#[update(guard = "auth")]
+pub fn approve_privacy_policy(version: u64) -> Result<bool, ApiError> {
+    Store::approve_privacy_policy(caller(), version)
+}
+
+// This method is used to approve the approve terms of service for the specific caller
+#[update(guard = "auth")]
+pub fn approve_terms_of_service(version: u64) -> Result<bool, ApiError> {
+    Store::approve_terms_of_service(caller(), version)
+}
+
 // COMPOSITE_QUERY PREPARATION
 // This methods is used by the parent canister to get filtered profiles the (this) child canister
 // Data serialized and send as byte array chunks ` (bytes, (start_chunk, end_chunk)) `
