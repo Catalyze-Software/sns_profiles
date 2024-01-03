@@ -147,7 +147,7 @@ pub struct ProfileResponse {
     pub interests: Vec<u32>,
     pub causes: Vec<u32>,
     pub website: String,
-    pub code_of_conduct: Option<DocumentDetails>,
+    pub code_of_conduct: DocumentDetails,
     pub privacy_policy: Option<DocumentDetails>,
     pub terms_of_service: Option<DocumentDetails>,
     pub wallets: Vec<WalletResponse>,

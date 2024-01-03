@@ -106,7 +106,7 @@ type ProfileResponse = record {
   last_name : text;
   member_identifier : principal;
   causes : vec nat32;
-  code_of_conduct : opt DocumentDetails;
+  code_of_conduct : DocumentDetails;
   date_of_birth : nat64;
   identifier : principal;
   skills : vec nat32;

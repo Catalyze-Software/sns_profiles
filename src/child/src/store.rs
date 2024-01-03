@@ -1059,7 +1059,7 @@ impl Store {
             interests: profile.interests,
             causes: profile.causes,
             website: profile.website,
-            code_of_conduct: Some(profile.code_of_conduct),
+            code_of_conduct: profile.code_of_conduct,
             wallets: profile
                 .wallets
                 .into_iter()
