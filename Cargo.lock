@@ -544,9 +544,15 @@ dependencies = [
 
 [[package]]
 name = "ic_catalyze_notifications"
+<<<<<<< HEAD
 version = "0.0.1-beta.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "dca4f469d7718cff82e5f235909e6044c4bcc68891df3cd71e40ae0854bd942a"
+=======
+version = "0.0.1-beta.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "61dd6da315f9268352200fc1b4b182adc344f8bb353088981b06cd40a15835a5"
+>>>>>>> development
 dependencies = [
  "candid",
  "ic-cdk 0.11.3",
@@ -554,12 +560,15 @@ dependencies = [
 ]
 
 [[package]]
+<<<<<<< HEAD
 name = "ic_principal"
 version = "0.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1762deb6f7c8d8c2bdee4b6c5a47b60195b74e9b5280faa5ba29692f8e17429c"
 
 [[package]]
+=======
+>>>>>>> development
 name = "ic_scalable_canister"
 version = "0.3.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"

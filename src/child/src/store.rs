@@ -1,7 +1,10 @@
 use std::collections::HashMap;
 
 use candid::Principal;
+use ic_catalyze_notifications::models::{Environment, FriendRequestNotificationData};
+use ic_catalyze_notifications::store::Notification;
 use ic_cdk::api::{call, time};
+use ic_cdk::id;
 use ic_scalable_canister::store::Data;
 
 use ic_scalable_canister::ic_scalable_misc::helpers::serialize_helper::serialize;
@@ -17,6 +20,7 @@ use ic_scalable_canister::ic_scalable_misc::{
     models::paged_response_models::PagedResponse,
 };
 
+use serde_json::json;
 use shared::profile_models::{
     DocumentDetails, FriendRequest, FriendRequestResponse, PostProfile, PostWallet, Profile,
     ProfileFilter, ProfileResponse, ProfileSort, RelationType, UpdateProfile, Wallet,
@@ -1200,12 +1204,35 @@ impl Store {
 
             let request = FriendRequest {
                 requested_by,
-                message,
+                message: message.clone(),
                 to,
                 created_at: time(),
             };
 
             requests.insert(id.clone(), request.clone());
+
+            let display_name = Self::get_profile_by_user_principal(requested_by)
+                .map_or("unknown".to_string(), |p| p.display_name);
+
+            let metadata = json!({
+                "receivedBy": display_name,
+                "receivedByPrincipal": requested_by.to_string(),
+                "message": message,
+                "isProcessed": false,
+            });
+
+            Self::send_notification().friend_request_notification(
+                requested_by.clone(),
+                FriendRequestNotificationData {
+                    friend_request_id: id.clone(),
+                    from: requested_by.clone(),
+                    to,
+                    accepted: None,
+                },
+                vec![to.clone()],
+                metadata.to_string(),
+            );
+
             Ok(FriendRequestResponse {
                 id,
                 requested_by,
@@ -1277,12 +1304,32 @@ impl Store {
                         let _ = Data::update_entry(
                             data,
                             entries,
-                            Principal::from_text(to_profile.0).unwrap(),
-                            to_profile.1,
+                            Principal::from_text(to_profile.0.clone()).unwrap(),
+                            to_profile.1.clone(),
                         );
                     });
                 });
                 requests.remove(&id);
+
+                let display_name = Self::get_profile_by_user_principal(caller)
+                    .map_or("unknown".to_string(), |p| p.display_name);
+
+                let metadata = json!({
+                    "acceptedBy": display_name,
+                    "acceptedByPrincipal": caller.to_string(),
+                });
+
+                Self::send_notification().friend_request_notification(
+                    request.requested_by.clone(),
+                    FriendRequestNotificationData {
+                        friend_request_id: id.clone(),
+                        from: request.requested_by.clone(),
+                        to: request.to.clone(),
+                        accepted: Some(true),
+                    },
+                    vec![request.requested_by],
+                    metadata.to_string(),
+                );
                 return Ok(true);
             }
 
@@ -1326,6 +1373,8 @@ impl Store {
             });
         });
 
+        Self::send_notification().friend_remove_notification(to_remove, "{}".to_string());
+
         Ok(true)
     }
 
@@ -1360,6 +1409,26 @@ impl Store {
 
             if let Some(request) = requests.get(&id) {
                 if request.to == caller {
+                    let display_name = Self::get_profile_by_user_principal(caller)
+                        .map_or("unknown".to_string(), |p| p.display_name);
+
+                    let metadata = json!({
+                        "declinedBy": display_name,
+                        "declinedByPrincipal": caller.to_string(),
+                    });
+
+                    Self::send_notification().friend_request_notification(
+                        request.requested_by.clone(),
+                        FriendRequestNotificationData {
+                            friend_request_id: id.clone(),
+                            from: request.requested_by.clone(),
+                            to: request.to.clone(),
+                            accepted: Some(false),
+                        },
+                        vec![request.requested_by],
+                        metadata.to_string(),
+                    );
+
                     requests.remove(&id);
                     return Ok(true);
                 }
@@ -1455,5 +1524,25 @@ impl Store {
                     )
             }
         }
+    }
+
+    fn get_environment() -> Option<Environment> {
+        let canister_id = id().to_string();
+        if canister_id == "4vy4w-gaaaa-aaaap-aa4pa-cai".to_string() {
+            return Some(Environment::Production);
+        }
+        if canister_id == "5ycyv-iiaaa-aaaap-abgia-cai" {
+            return Some(Environment::Staging);
+        }
+        if canister_id == "crorp-uaaaa-aaaap-abqwq-cai" {
+            return Some(Environment::Development);
+        } else {
+            return None;
+        }
+    }
+
+    fn send_notification() -> Notification {
+        let environment = Self::get_environment().expect("Environment not found");
+        Notification::new(environment)
     }
 }
