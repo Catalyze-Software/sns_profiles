@@ -22,7 +22,7 @@ use ic_scalable_canister::ic_scalable_misc::{
 
 use serde_json::json;
 use shared::profile_models::{
-    CodeOfConductDetails, FriendRequest, FriendRequestResponse, PostProfile, PostWallet, Profile,
+    DocumentDetails, FriendRequest, FriendRequestResponse, PostProfile, PostWallet, Profile,
     ProfileFilter, ProfileResponse, ProfileSort, RelationType, UpdateProfile, Wallet,
     WalletResponse,
 };
@@ -142,7 +142,7 @@ impl Store {
                         wallets: HashMap::new(),
                         starred: HashMap::new(),
                         relations: HashMap::new(),
-                        code_of_conduct: CodeOfConductDetails {
+                        code_of_conduct: DocumentDetails {
                             approved_version: 0,
                             approved_date: 0,
                         },
@@ -150,6 +150,8 @@ impl Store {
                         updated_on: time(),
                         created_on: time(),
                         member_identifier: Principal::anonymous(),
+                        privacy_policy: None,
+                        terms_of_service: None,
                     };
                     // Add the new profile to the data store and pass in the "kind" as a third parameter to generate a identifier
                     let add_entry_result = STABLE_DATA.with(|data| {
@@ -732,10 +734,52 @@ impl Store {
                 None,
             )),
             Some((_identifier, mut _existing)) => {
-                _existing.code_of_conduct = CodeOfConductDetails {
+                _existing.code_of_conduct = DocumentDetails {
                     approved_version: version,
                     approved_date: time(),
                 };
+
+                let _ = STABLE_DATA.with(|data| {
+                    ENTRIES
+                        .with(|entries| Data::update_entry(data, entries, _identifier, _existing))
+                });
+                Ok(true)
+            }
+        }
+    }
+
+    pub fn approve_privacy_policy(caller: Principal, version: u64) -> Result<bool, ApiError> {
+        match Self::_get_profile_from_caller(caller) {
+            None => Err(Self::_profile_not_found_error(
+                "approve_privacy_policy",
+                None,
+            )),
+            Some((_identifier, mut _existing)) => {
+                _existing.privacy_policy = Some(DocumentDetails {
+                    approved_version: version,
+                    approved_date: time(),
+                });
+
+                let _ = STABLE_DATA.with(|data| {
+                    ENTRIES
+                        .with(|entries| Data::update_entry(data, entries, _identifier, _existing))
+                });
+                Ok(true)
+            }
+        }
+    }
+
+    pub fn approve_terms_of_service(caller: Principal, version: u64) -> Result<bool, ApiError> {
+        match Self::_get_profile_from_caller(caller) {
+            None => Err(Self::_profile_not_found_error(
+                "approve_terms_of_service",
+                None,
+            )),
+            Some((_identifier, mut _existing)) => {
+                _existing.terms_of_service = Some(DocumentDetails {
+                    approved_version: version,
+                    approved_date: time(),
+                });
 
                 let _ = STABLE_DATA.with(|data| {
                     ENTRIES
@@ -1029,6 +1073,8 @@ impl Store {
             updated_on: profile.updated_on,
             created_on: profile.created_on,
             member_identifier: profile.member_identifier,
+            privacy_policy: profile.privacy_policy,
+            terms_of_service: profile.terms_of_service,
         }
     }
 
