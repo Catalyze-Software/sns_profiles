@@ -170,6 +170,7 @@ dependencies = [
  "ic-cdk 0.11.3",
  "ic-stable-structures",
  "ic_canister_backup",
+ "ic_catalyze_notifications",
  "ic_scalable_canister",
  "serde",
  "serde_cbor",
@@ -536,6 +537,17 @@ checksum = "332e2a0848f7b08319fcf3d5113ea20aa2f8f88979cf4497c95a96db19564e92"
 dependencies = [
  "ic-cdk 0.11.3",
  "sha2",
+]
+
+[[package]]
+name = "ic_catalyze_notifications"
+version = "0.0.1-beta.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "61dd6da315f9268352200fc1b4b182adc344f8bb353088981b06cd40a15835a5"
+dependencies = [
+ "candid",
+ "ic-cdk 0.11.3",
+ "serde",
 ]
 
 [[package]]
