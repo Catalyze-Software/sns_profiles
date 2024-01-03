@@ -34,11 +34,11 @@ type ChunkData = record {
   canister : principal;
   index : nat64;
 };
-type CodeOfConductDetails = record {
+type DateRange = record { end_date : nat64; start_date : nat64 };
+type DocumentDetails = record {
   approved_date : nat64;
   approved_version : nat64;
 };
-type DateRange = record { end_date : nat64; start_date : nat64 };
 type ErrorMessage = record {
   tag : text;
   message : text;
@@ -95,8 +95,10 @@ type ProfileResponse = record {
   created_on : nat64;
   email : text;
   website : text;
+  terms_of_service : opt DocumentDetails;
   display_name : text;
   extra : text;
+  privacy_policy : opt DocumentDetails;
   privacy : ProfilePrivacy;
   wallets : vec WalletResponse;
   state_or_province : text;
@@ -104,7 +106,7 @@ type ProfileResponse = record {
   last_name : text;
   member_identifier : principal;
   causes : vec nat32;
-  code_of_conduct : CodeOfConductDetails;
+  code_of_conduct : opt DocumentDetails;
   date_of_birth : nat64;
   identifier : principal;
   skills : vec nat32;
