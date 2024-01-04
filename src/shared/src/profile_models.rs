@@ -32,7 +32,9 @@ pub struct Profile {
     pub interests: Vec<u32>,
     pub causes: Vec<u32>,
     pub website: String,
-    pub code_of_conduct: CodeOfConductDetails,
+    pub code_of_conduct: DocumentDetails,
+    pub privacy_policy: Option<DocumentDetails>,
+    pub terms_of_service: Option<DocumentDetails>,
     pub wallets: HashMap<Principal, Wallet>,
     pub starred: HashMap<Principal, String>,
     pub relations: HashMap<Principal, String>,
@@ -85,6 +87,8 @@ impl Default for Profile {
             extra: Default::default(),
             updated_on: Default::default(),
             created_on: Default::default(),
+            privacy_policy: None,
+            terms_of_service: None,
         }
     }
 }
@@ -143,7 +147,9 @@ pub struct ProfileResponse {
     pub interests: Vec<u32>,
     pub causes: Vec<u32>,
     pub website: String,
-    pub code_of_conduct: CodeOfConductDetails,
+    pub code_of_conduct: DocumentDetails,
+    pub privacy_policy: Option<DocumentDetails>,
+    pub terms_of_service: Option<DocumentDetails>,
     pub wallets: Vec<WalletResponse>,
     pub extra: String,
     pub updated_on: u64,
@@ -151,7 +157,7 @@ pub struct ProfileResponse {
 }
 
 #[derive(Clone, Debug, Default, Serialize, CandidType, Deserialize)]
-pub struct CodeOfConductDetails {
+pub struct DocumentDetails {
     pub approved_version: u64,
     pub approved_date: u64,
 }

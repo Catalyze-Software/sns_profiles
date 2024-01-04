@@ -14,7 +14,7 @@ use super::store::Store;
 
 // This method is used to add a profile to the canister,
 // The method is async because it optionally creates a new canister is created
-#[update]
+#[update(guard = "auth")]
 pub async fn add_profile(
     post_profile: PostProfile,
     member_canister: Principal,
@@ -47,37 +47,37 @@ pub fn get_profiles_by_identifier(identifiers: Vec<Principal>) -> Vec<ProfileRes
 }
 
 // This method is used to edit a profile
-#[update]
+#[update(guard = "auth")]
 pub fn edit_profile(update_profile: UpdateProfile) -> Result<ProfileResponse, ApiError> {
     Store::update_profile(caller(), update_profile)
 }
 
 // This method is used to add a wallet reference to the profile
-#[update]
+#[update(guard = "auth")]
 pub fn add_wallet(wallet: PostWallet) -> Result<ProfileResponse, ApiError> {
     Store::add_wallet(caller(), wallet)
 }
 
 // This method is used to set a wallet as primary
-#[update]
+#[update(guard = "auth")]
 pub fn set_wallet_as_primary(wallet_principal: Principal) -> Result<(), ()> {
     Store::set_wallet_as_primary(caller(), wallet_principal)
 }
 
 // This method is used to remove a wallet reference from the profile
-#[update]
+#[update(guard = "auth")]
 pub fn remove_wallet(wallet: Principal) -> Result<ProfileResponse, ApiError> {
     Store::remove_wallet(caller(), wallet)
 }
 
 // This method is used to add a starred reference to the profile, for example a starred event, group or task
-#[update]
+#[update(guard = "auth")]
 pub fn add_starred(identifier: Principal) -> Result<ProfileResponse, ApiError> {
     Store::add_starred(caller(), identifier)
 }
 
 // This method is used to remove a starred reference from the profile
-#[update]
+#[update(guard = "auth")]
 pub fn remove_starred(identifier: Principal) -> Result<ProfileResponse, ApiError> {
     Store::remove_starred(caller(), identifier)
 }
@@ -100,7 +100,7 @@ pub fn get_starred_groups() -> Vec<Principal> {
     Store::get_starred(caller(), "grp".to_string())
 }
 
-#[update]
+#[update(guard = "auth")]
 pub fn add_friend_request(
     principal: Principal,
     message: String,
@@ -108,17 +108,17 @@ pub fn add_friend_request(
     Store::add_friend_request(caller(), principal, message)
 }
 
-#[update]
+#[update(guard = "auth")]
 pub fn remove_friend(principal: Principal) -> Result<bool, String> {
     Store::remove_friend(caller(), principal)
 }
 
-#[update]
+#[update(guard = "auth")]
 pub fn accept_friend_request(id: u64) -> Result<bool, String> {
     Store::accept_friend_request(caller(), id)
 }
 
-#[update]
+#[update(guard = "auth")]
 pub fn remove_friend_request(principal: Principal, id: u64) -> Result<bool, String> {
     Store::remove_friend_request(principal, id)
 }
@@ -128,17 +128,17 @@ pub fn get_friend_requests() -> Vec<FriendRequestResponse> {
     Store::get_friend_requests(caller())
 }
 
-#[update]
+#[update(guard = "auth")]
 pub fn decline_friend_request(id: u64) -> Result<bool, String> {
     Store::decline_friend_request(caller(), id)
 }
 
-#[update]
+#[update(guard = "auth")]
 pub fn unblock_user(principal: Principal) -> Result<ProfileResponse, ApiError> {
     Store::unblock_user(caller(), principal)
 }
 
-#[update]
+#[update(guard = "auth")]
 pub fn block_user(principal: Principal) -> Result<ProfileResponse, ApiError> {
     Store::block_user(caller(), principal)
 }
@@ -155,7 +155,7 @@ pub fn get_relations_count(principal: Principal, relation_type: RelationType) ->
     Store::get_relations(principal, relation_type).len() as u64
 }
 
-#[update]
+#[update(guard = "auth")]
 pub fn clear_relations(code: String) -> bool {
     if code != "i_know_what_i_am_doing" {
         return false;
@@ -165,9 +165,21 @@ pub fn clear_relations(code: String) -> bool {
 }
 
 // This method is used to approve the code of conduct for the specific caller
-#[update]
+#[update(guard = "auth")]
 pub fn approve_code_of_conduct(version: u64) -> Result<bool, ApiError> {
     Store::approve_code_of_conduct(caller(), version)
+}
+
+// This method is used to approve the approve privacy policy for the specific caller
+#[update(guard = "auth")]
+pub fn approve_privacy_policy(version: u64) -> Result<bool, ApiError> {
+    Store::approve_privacy_policy(caller(), version)
+}
+
+// This method is used to approve the approve terms of service for the specific caller
+#[update(guard = "auth")]
+pub fn approve_terms_of_service(version: u64) -> Result<bool, ApiError> {
+    Store::approve_terms_of_service(caller(), version)
 }
 
 // COMPOSITE_QUERY PREPARATION
@@ -185,4 +197,11 @@ fn get_chunked_data(
     }
 
     Store::get_chunked_data(filters, chunk, max_bytes_per_chunk)
+}
+
+pub fn auth() -> Result<(), String> {
+    match caller() == Principal::anonymous() {
+        true => Err("Unauthorized".to_string()),
+        false => Ok(()),
+    }
 }

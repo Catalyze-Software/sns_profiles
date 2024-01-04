@@ -1,7 +1,10 @@
 use std::collections::HashMap;
 
 use candid::Principal;
+use ic_catalyze_notifications::models::{Environment, FriendRequestNotificationData};
+use ic_catalyze_notifications::store::Notification;
 use ic_cdk::api::{call, time};
+use ic_cdk::id;
 use ic_scalable_canister::store::Data;
 
 use ic_scalable_canister::ic_scalable_misc::helpers::serialize_helper::serialize;
@@ -17,8 +20,9 @@ use ic_scalable_canister::ic_scalable_misc::{
     models::paged_response_models::PagedResponse,
 };
 
+use serde_json::json;
 use shared::profile_models::{
-    CodeOfConductDetails, FriendRequest, FriendRequestResponse, PostProfile, PostWallet, Profile,
+    DocumentDetails, FriendRequest, FriendRequestResponse, PostProfile, PostWallet, Profile,
     ProfileFilter, ProfileResponse, ProfileSort, RelationType, UpdateProfile, Wallet,
     WalletResponse,
 };
@@ -138,7 +142,7 @@ impl Store {
                         wallets: HashMap::new(),
                         starred: HashMap::new(),
                         relations: HashMap::new(),
-                        code_of_conduct: CodeOfConductDetails {
+                        code_of_conduct: DocumentDetails {
                             approved_version: 0,
                             approved_date: 0,
                         },
@@ -146,6 +150,8 @@ impl Store {
                         updated_on: time(),
                         created_on: time(),
                         member_identifier: Principal::anonymous(),
+                        privacy_policy: None,
+                        terms_of_service: None,
                     };
                     // Add the new profile to the data store and pass in the "kind" as a third parameter to generate a identifier
                     let add_entry_result = STABLE_DATA.with(|data| {
@@ -728,10 +734,52 @@ impl Store {
                 None,
             )),
             Some((_identifier, mut _existing)) => {
-                _existing.code_of_conduct = CodeOfConductDetails {
+                _existing.code_of_conduct = DocumentDetails {
                     approved_version: version,
                     approved_date: time(),
                 };
+
+                let _ = STABLE_DATA.with(|data| {
+                    ENTRIES
+                        .with(|entries| Data::update_entry(data, entries, _identifier, _existing))
+                });
+                Ok(true)
+            }
+        }
+    }
+
+    pub fn approve_privacy_policy(caller: Principal, version: u64) -> Result<bool, ApiError> {
+        match Self::_get_profile_from_caller(caller) {
+            None => Err(Self::_profile_not_found_error(
+                "approve_privacy_policy",
+                None,
+            )),
+            Some((_identifier, mut _existing)) => {
+                _existing.privacy_policy = Some(DocumentDetails {
+                    approved_version: version,
+                    approved_date: time(),
+                });
+
+                let _ = STABLE_DATA.with(|data| {
+                    ENTRIES
+                        .with(|entries| Data::update_entry(data, entries, _identifier, _existing))
+                });
+                Ok(true)
+            }
+        }
+    }
+
+    pub fn approve_terms_of_service(caller: Principal, version: u64) -> Result<bool, ApiError> {
+        match Self::_get_profile_from_caller(caller) {
+            None => Err(Self::_profile_not_found_error(
+                "approve_terms_of_service",
+                None,
+            )),
+            Some((_identifier, mut _existing)) => {
+                _existing.terms_of_service = Some(DocumentDetails {
+                    approved_version: version,
+                    approved_date: time(),
+                });
 
                 let _ = STABLE_DATA.with(|data| {
                     ENTRIES
@@ -1025,6 +1073,8 @@ impl Store {
             updated_on: profile.updated_on,
             created_on: profile.created_on,
             member_identifier: profile.member_identifier,
+            privacy_policy: profile.privacy_policy,
+            terms_of_service: profile.terms_of_service,
         }
     }
 
@@ -1154,12 +1204,35 @@ impl Store {
 
             let request = FriendRequest {
                 requested_by,
-                message,
+                message: message.clone(),
                 to,
                 created_at: time(),
             };
 
             requests.insert(id.clone(), request.clone());
+
+            let display_name = Self::get_profile_by_user_principal(requested_by)
+                .map_or("unknown".to_string(), |p| p.display_name);
+
+            let metadata = json!({
+                "receivedBy": display_name,
+                "receivedByPrincipal": requested_by.to_string(),
+                "message": message,
+                "isProcessed": false,
+            });
+
+            Self::send_notification().friend_request_notification(
+                requested_by.clone(),
+                FriendRequestNotificationData {
+                    friend_request_id: id.clone(),
+                    from: requested_by.clone(),
+                    to,
+                    accepted: None,
+                },
+                vec![to.clone()],
+                metadata.to_string(),
+            );
+
             Ok(FriendRequestResponse {
                 id,
                 requested_by,
@@ -1231,12 +1304,32 @@ impl Store {
                         let _ = Data::update_entry(
                             data,
                             entries,
-                            Principal::from_text(to_profile.0).unwrap(),
-                            to_profile.1,
+                            Principal::from_text(to_profile.0.clone()).unwrap(),
+                            to_profile.1.clone(),
                         );
                     });
                 });
                 requests.remove(&id);
+
+                let display_name = Self::get_profile_by_user_principal(caller)
+                    .map_or("unknown".to_string(), |p| p.display_name);
+
+                let metadata = json!({
+                    "acceptedBy": display_name,
+                    "acceptedByPrincipal": caller.to_string(),
+                });
+
+                Self::send_notification().friend_request_notification(
+                    request.requested_by.clone(),
+                    FriendRequestNotificationData {
+                        friend_request_id: id.clone(),
+                        from: request.requested_by.clone(),
+                        to: request.to.clone(),
+                        accepted: Some(true),
+                    },
+                    vec![request.requested_by],
+                    metadata.to_string(),
+                );
                 return Ok(true);
             }
 
@@ -1280,6 +1373,8 @@ impl Store {
             });
         });
 
+        Self::send_notification().friend_remove_notification(to_remove, "{}".to_string());
+
         Ok(true)
     }
 
@@ -1314,6 +1409,26 @@ impl Store {
 
             if let Some(request) = requests.get(&id) {
                 if request.to == caller {
+                    let display_name = Self::get_profile_by_user_principal(caller)
+                        .map_or("unknown".to_string(), |p| p.display_name);
+
+                    let metadata = json!({
+                        "declinedBy": display_name,
+                        "declinedByPrincipal": caller.to_string(),
+                    });
+
+                    Self::send_notification().friend_request_notification(
+                        request.requested_by.clone(),
+                        FriendRequestNotificationData {
+                            friend_request_id: id.clone(),
+                            from: request.requested_by.clone(),
+                            to: request.to.clone(),
+                            accepted: Some(false),
+                        },
+                        vec![request.requested_by],
+                        metadata.to_string(),
+                    );
+
                     requests.remove(&id);
                     return Ok(true);
                 }
@@ -1409,5 +1524,25 @@ impl Store {
                     )
             }
         }
+    }
+
+    fn get_environment() -> Option<Environment> {
+        let canister_id = id().to_string();
+        if canister_id == "4vy4w-gaaaa-aaaap-aa4pa-cai".to_string() {
+            return Some(Environment::Production);
+        }
+        if canister_id == "5ycyv-iiaaa-aaaap-abgia-cai" {
+            return Some(Environment::Staging);
+        }
+        if canister_id == "crorp-uaaaa-aaaap-abqwq-cai" {
+            return Some(Environment::Development);
+        } else {
+            return None;
+        }
+    }
+
+    fn send_notification() -> Notification {
+        let environment = Self::get_environment().expect("Environment not found");
+        Notification::new(environment)
     }
 }
