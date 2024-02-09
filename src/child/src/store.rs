@@ -1533,11 +1533,9 @@ impl Store {
         }
         if canister_id == "5ycyv-iiaaa-aaaap-abgia-cai" {
             return Some(Environment::Staging);
-        }
-        if canister_id == "crorp-uaaaa-aaaap-abqwq-cai" {
-            return Some(Environment::Development);
         } else {
-            return None;
+            // if its development or marketing
+            return Some(Environment::Development);
         }
     }
 
