@@ -53,6 +53,12 @@ type ErrorMessage = record {
   inputs : opt vec text;
   location : text;
 };
+type FriendRequest = record {
+  to : principal;
+  created_at : nat64;
+  requested_by : principal;
+  message : text;
+};
 type FriendRequestResponse = record {
   id : nat64;
   to : principal;
@@ -82,6 +88,37 @@ type PostProfile = record {
   last_name : text;
 };
 type PostWallet = record { "principal" : principal; provider : text };
+type Profile = record {
+  updated_on : nat64;
+  profile_image : Asset;
+  "principal" : principal;
+  banner_image : Asset;
+  about : text;
+  country : text;
+  username : text;
+  starred : vec record { principal; text };
+  interests : vec nat32;
+  city : text;
+  created_on : nat64;
+  email : text;
+  website : text;
+  terms_of_service : opt DocumentDetails;
+  display_name : text;
+  extra : text;
+  privacy_policy : opt DocumentDetails;
+  privacy : ProfilePrivacy;
+  wallets : vec record { principal; Wallet };
+  state_or_province : text;
+  first_name : text;
+  last_name : text;
+  member_identifier : principal;
+  causes : vec nat32;
+  code_of_conduct : DocumentDetails;
+  date_of_birth : nat64;
+  skills : vec nat32;
+  relations : vec record { principal; text };
+  application_role : ApplicationRole;
+};
 type ProfileFilter = variant {
   Interest : nat32;
   Email : text;
@@ -169,6 +206,7 @@ type UpdateProfile = record {
   skills : vec nat32;
 };
 type ValidationResponse = record { field : text; message : text };
+type Wallet = record { provider : text; is_primary : bool };
 type WalletResponse = record {
   "principal" : principal;
   provider : text;
@@ -214,6 +252,10 @@ service : (principal, text, nat64) -> {
   get_starred_groups : () -> (vec principal) query;
   get_starred_tasks : () -> (vec principal) query;
   http_request : (HttpRequest) -> (HttpResponse) query;
+  read_profile_entries : () -> (vec record { text; Profile }) query;
+  read_profile_friend_requests : () -> (
+      vec record { nat64; FriendRequest },
+    ) query;
   remove_friend : (principal) -> (Result);
   remove_friend_request : (principal, nat64) -> (Result);
   remove_starred : (principal) -> (Result_3);
