@@ -1,12 +1,15 @@
 use std::collections::HashMap;
 
 use candid::Principal;
+use ic_catalyze_notifications::models::{Environment, FriendRequestNotificationData};
+use ic_catalyze_notifications::store::Notification;
 use ic_cdk::api::{call, time};
+use ic_cdk::id;
 use ic_scalable_canister::store::Data;
 
-use ic_scalable_misc::helpers::serialize_helper::serialize;
-use ic_scalable_misc::models::identifier_model::Identifier;
-use ic_scalable_misc::{
+use ic_scalable_canister::ic_scalable_misc::helpers::serialize_helper::serialize;
+use ic_scalable_canister::ic_scalable_misc::models::identifier_model::Identifier;
+use ic_scalable_canister::ic_scalable_misc::{
     enums::{
         api_error_type::{ApiError, ApiErrorType},
         application_role_type::ApplicationRole,
@@ -17,9 +20,16 @@ use ic_scalable_misc::{
     models::paged_response_models::PagedResponse,
 };
 
+use serde_json::json;
 use shared::profile_models::{
-    CodeOfConductDetails, PostProfile, PostWallet, Profile, ProfileFilter, ProfileResponse,
-    ProfileSort, RelationType, UpdateProfile, Wallet, WalletResponse,
+    DocumentDetails, FriendRequest, FriendRequestResponse, PostProfile, PostWallet, Profile,
+    ProfileFilter, ProfileResponse, ProfileSort, RelationType, UpdateProfile, Wallet,
+    WalletResponse,
+};
+
+use ic_stable_structures::{
+    memory_manager::{MemoryId, MemoryManager, VirtualMemory},
+    {DefaultMemoryImpl, StableBTreeMap, StableCell},
 };
 
 use std::cell::RefCell;
@@ -28,8 +38,34 @@ use crate::IDENTIFIER_KIND;
 
 use super::validation::{validate_post_profile, validate_update_profile};
 
+type Memory = VirtualMemory<DefaultMemoryImpl>;
+
+pub static DATA_MEMORY_ID: MemoryId = MemoryId::new(0);
+pub static ENTRIES_MEMORY_ID: MemoryId = MemoryId::new(1);
+pub static FRIEND_REQUESTS_MEMORY_ID: MemoryId = MemoryId::new(2);
+
 thread_local! {
-    pub static DATA: RefCell<Data<Profile>> = RefCell::new(Data::default());
+    pub static MEMORY_MANAGER: RefCell<MemoryManager<DefaultMemoryImpl>> =
+        RefCell::new(MemoryManager::init(DefaultMemoryImpl::default()));
+
+        pub static STABLE_DATA: RefCell<StableCell<Data, Memory>> = RefCell::new(
+            StableCell::init(
+                MEMORY_MANAGER.with(|m| m.borrow().get(DATA_MEMORY_ID)),
+                Data::default(),
+            ).expect("failed")
+        );
+
+        pub static ENTRIES: RefCell<StableBTreeMap<String, Profile, Memory>> = RefCell::new(
+            StableBTreeMap::init(
+                MEMORY_MANAGER.with(|m| m.borrow().get(ENTRIES_MEMORY_ID)),
+            )
+        );
+
+        pub static FRIEND_REQUEST: RefCell<StableBTreeMap<u64, FriendRequest, Memory>> = RefCell::new(
+            StableBTreeMap::init(
+                MEMORY_MANAGER.with(|m| m.borrow().get(FRIEND_REQUESTS_MEMORY_ID)),
+            )
+        );
 }
 
 pub struct Store;
@@ -53,7 +89,9 @@ impl Store {
                 ApiErrorType::BadRequest,
                 "ALREADY_REGISTERED",
                 "User profile already registered",
-                DATA.with(|data| Data::get_name(data)).as_str(),
+                STABLE_DATA
+                    .with(|data| Data::get_name(data.borrow().get()))
+                    .as_str(),
                 "add_profile",
                 inputs,
             )),
@@ -63,14 +101,16 @@ impl Store {
                 Ok(_) => {
                     // Check if the username is already taken
                     if Self::_has_user_name(
-                        &DATA.with(|data| Data::get_entries(data)),
+                        &ENTRIES.with(|entries| Data::get_entries(entries)),
                         &post_profile.username,
                     ) {
                         return Err(api_error(
                             ApiErrorType::BadRequest,
                             "USERNAME_TAKEN",
                             "Username already taken",
-                            DATA.with(|data| Data::get_name(data)).as_str(),
+                            STABLE_DATA
+                                .with(|data| Data::get_name(data.borrow().get()))
+                                .as_str(),
                             "add_profile",
                             inputs,
                         ));
@@ -102,7 +142,7 @@ impl Store {
                         wallets: HashMap::new(),
                         starred: HashMap::new(),
                         relations: HashMap::new(),
-                        code_of_conduct: CodeOfConductDetails {
+                        code_of_conduct: DocumentDetails {
                             approved_version: 0,
                             approved_date: 0,
                         },
@@ -110,10 +150,19 @@ impl Store {
                         updated_on: time(),
                         created_on: time(),
                         member_identifier: Principal::anonymous(),
+                        privacy_policy: None,
+                        terms_of_service: None,
                     };
                     // Add the new profile to the data store and pass in the "kind" as a third parameter to generate a identifier
-                    let add_entry_result = DATA.with(|data| {
-                        Data::add_entry(data, profile.clone(), Some(IDENTIFIER_KIND.to_string()))
+                    let add_entry_result = STABLE_DATA.with(|data| {
+                        ENTRIES.with(|entries| {
+                            Data::add_entry(
+                                data,
+                                entries,
+                                profile.clone(),
+                                Some(IDENTIFIER_KIND.to_string()),
+                            )
+                        })
                     });
 
                     // Check if the profile was added to the data store successfully
@@ -121,9 +170,9 @@ impl Store {
                         // The profile was not added to the data store because the canister is at capacity
                         Err(err) => match err {
                             ApiError::CanisterAtCapacity(message) => {
-                                let _data = DATA.with(|v| v.borrow().clone());
+                                let _data = STABLE_DATA.with(|v| v.borrow().get().clone());
                                 // Spawn a sibling canister and pass the profile data to it
-                                match Data::spawn_sibling(_data, profile).await {
+                                match Data::spawn_sibling(&_data, profile).await {
                                     Ok(_) => Err(ApiError::CanisterAtCapacity(message)),
                                     Err(err) => Err(err),
                                 }
@@ -143,16 +192,20 @@ impl Store {
                                 Ok(_result) => match _result.0 {
                                     Ok(_member_identifier) => {
                                         // Update the profile with the member identifier
-                                        DATA.with(|data| {
+                                        STABLE_DATA.with(|data| {
                                             profile.member_identifier = _member_identifier;
-                                            let _ = Data::update_entry(
-                                                data,
-                                                identifier,
-                                                profile.clone(),
-                                            );
+                                            let _ = ENTRIES.with(|entries| {
+                                                Data::update_entry(
+                                                    data,
+                                                    entries,
+                                                    identifier,
+                                                    profile.clone(),
+                                                )
+                                            });
                                         });
                                         Ok(Self::_map_profile_to_profile_response(
-                                            identifier, profile,
+                                            identifier.to_string(),
+                                            profile,
                                         ))
                                     }
                                     Err(err) => Err(err),
@@ -161,7 +214,9 @@ impl Store {
                                     ApiErrorType::Unexpected,
                                     "ICC_MEMBER_CREATION_FAILED",
                                     err.1.as_str(),
-                                    DATA.with(|data| Data::get_name(data)).as_str(),
+                                    STABLE_DATA
+                                        .with(|data| Data::get_name(data.borrow().get()))
+                                        .as_str(),
                                     "add_profile",
                                     inputs,
                                 )),
@@ -183,7 +238,7 @@ impl Store {
             format!("update_profile - {:?}", &update_profile),
         ]);
         // get the profile from the data store
-        DATA.with(|data| match Self::_get_profile_from_caller(caller) {
+        match Self::_get_profile_from_caller(caller) {
             // If the profile does not exist, return an error
             None => Err(Self::_profile_not_found_error("update_profile", inputs)),
             // If the profile exists, continue and validate the update_profile method argument
@@ -199,13 +254,17 @@ impl Store {
                         // Check if it is not the same as the current email and the email is already taken
                         if email != "" {
                             if profile.email != email
-                                && Self::_has_email(&Data::get_entries(data), &email)
+                                && ENTRIES.with(|entries| {
+                                    Self::_has_email(&Data::get_entries(entries), &email)
+                                })
                             {
                                 return Err(api_error(
                                     ApiErrorType::BadRequest,
                                     "EMAIL_TAKEN",
                                     "Email already taken",
-                                    DATA.with(|data| Data::get_name(data)).as_str(),
+                                    STABLE_DATA
+                                        .with(|data| Data::get_name(data.borrow().get()))
+                                        .as_str(),
                                     "update_profile",
                                     inputs,
                                 ));
@@ -233,16 +292,23 @@ impl Store {
                         profile.updated_on = time();
 
                         // update the profile in the data store
-                        match DATA.with(|data| Data::update_entry(data, _identifier, profile)) {
+                        match STABLE_DATA.with(|data| {
+                            ENTRIES.with(|entries| {
+                                Data::update_entry(data, entries, _identifier, profile)
+                            })
+                        }) {
                             Err(err) => Err(err),
                             Ok((identifier, profile)) => {
-                                Ok(Self::_map_profile_to_profile_response(identifier, profile))
+                                Ok(Self::_map_profile_to_profile_response(
+                                    identifier.to_string(),
+                                    profile,
+                                ))
                             }
                         }
                     }
                 }
             }
-        })
+        }
     }
 
     pub fn add_wallet(caller: Principal, wallet: PostWallet) -> Result<ProfileResponse, ApiError> {
@@ -266,10 +332,20 @@ impl Store {
                     },
                 );
                 // Update the profile in the data store
-                DATA.with(|data| Data::update_entry(data, _identifier, _profile))
+                STABLE_DATA
+                    .with(|data| {
+                        ENTRIES.with(|entries| {
+                            Data::update_entry(data, entries, _identifier, _profile)
+                        })
+                    })
                     .map_or_else(
                         |err| Err(err),
-                        |result| Ok(Self::_map_profile_to_profile_response(result.0, result.1)),
+                        |result| {
+                            Ok(Self::_map_profile_to_profile_response(
+                                result.0.to_string(),
+                                result.1,
+                            ))
+                        },
                     )
             }
         }
@@ -296,7 +372,9 @@ impl Store {
                 .is_primary = true;
 
             // Update the profile in the data store
-            if let Ok(_) = DATA.with(|data| Data::update_entry(data, _identifier, _profile)) {
+            if let Ok(_) = STABLE_DATA.with(|data| {
+                ENTRIES.with(|entries| Data::update_entry(data, entries, _identifier, _profile))
+            }) {
                 return Ok(());
             } else {
                 return Err(());
@@ -328,7 +406,9 @@ impl Store {
                         ApiErrorType::NotFound,
                         "WALLET_NOT_FOUND",
                         "Wallet not found",
-                        DATA.with(|data| Data::get_name(data)).as_str(),
+                        STABLE_DATA
+                            .with(|data| Data::get_name(data.borrow().get()))
+                            .as_str(),
                         "remove_wallet",
                         inputs,
                     ));
@@ -337,10 +417,20 @@ impl Store {
                 _profile.wallets.remove(&wallet_principal);
 
                 // Update the profile in the data store
-                DATA.with(|data| Data::update_entry(data, _identifier, _profile))
+                STABLE_DATA
+                    .with(|data| {
+                        ENTRIES.with(|entries| {
+                            Data::update_entry(data, entries, _identifier, _profile)
+                        })
+                    })
                     .map_or_else(
                         |err| Err(err),
-                        |result| Ok(Self::_map_profile_to_profile_response(result.0, result.1)),
+                        |result| {
+                            Ok(Self::_map_profile_to_profile_response(
+                                result.0.to_string(),
+                                result.1,
+                            ))
+                        },
                     )
             }
         }
@@ -363,7 +453,9 @@ impl Store {
                 ApiErrorType::NotFound,
                 "INVALID TYPE",
                 format!("'{}' is not supported", kind).as_str(),
-                DATA.with(|data| Data::get_name(data)).as_str(),
+                STABLE_DATA
+                    .with(|data| Data::get_name(data.borrow().get()))
+                    .as_str(),
                 "add_starred",
                 inputs,
             ));
@@ -377,10 +469,20 @@ impl Store {
                 // Add the starred identifier to the profile
                 _profile.starred.insert(starred_identifier, kind);
 
-                DATA.with(|data| Data::update_entry(data, _identifier, _profile))
+                STABLE_DATA
+                    .with(|data| {
+                        ENTRIES.with(|entries| {
+                            Data::update_entry(data, entries, _identifier, _profile)
+                        })
+                    })
                     .map_or_else(
                         |err| Err(err),
-                        |result| Ok(Self::_map_profile_to_profile_response(result.0, result.1)),
+                        |result| {
+                            Ok(Self::_map_profile_to_profile_response(
+                                result.0.to_string(),
+                                result.1,
+                            ))
+                        },
                     )
             }
         }
@@ -408,7 +510,9 @@ impl Store {
                         ApiErrorType::NotFound,
                         "STARRED_NOT_FOUND",
                         "Starred identifier not found",
-                        DATA.with(|data| Data::get_name(data)).as_str(),
+                        STABLE_DATA
+                            .with(|data| Data::get_name(data.borrow().get()))
+                            .as_str(),
                         "remove_starred",
                         inputs,
                     ));
@@ -417,10 +521,20 @@ impl Store {
                 // Remove the starred identifier from the profile
                 _profile.starred.remove(&starred_identifier);
                 // Update the profile in the data store
-                DATA.with(|data| Data::update_entry(data, _identifier, _profile))
+                STABLE_DATA
+                    .with(|data| {
+                        ENTRIES.with(|entries| {
+                            Data::update_entry(data, entries, _identifier, _profile)
+                        })
+                    })
                     .map_or_else(
                         |err| Err(err),
-                        |result| Ok(Self::_map_profile_to_profile_response(result.0, result.1)),
+                        |result| {
+                            Ok(Self::_map_profile_to_profile_response(
+                                result.0.to_string(),
+                                result.1,
+                            ))
+                        },
                     )
             }
         }
@@ -472,7 +586,9 @@ impl Store {
                 ApiErrorType::NotFound,
                 "INVALID TYPE",
                 format!("'{}' is not supported", kind).as_str(),
-                DATA.with(|data| Data::get_name(data)).as_str(),
+                STABLE_DATA
+                    .with(|data| Data::get_name(data.borrow().get()))
+                    .as_str(),
                 "add_relation",
                 inputs,
             ));
@@ -490,10 +606,20 @@ impl Store {
                     .insert(relation_identifier, relation_type.to_string());
 
                 // Update the profile in the data store
-                DATA.with(|data| Data::update_entry(data, _identifier, _profile))
+                STABLE_DATA
+                    .with(|data| {
+                        ENTRIES.with(|entries| {
+                            Data::update_entry(data, entries, _identifier, _profile)
+                        })
+                    })
                     .map_or_else(
                         |err| Err(err),
-                        |result| Ok(Self::_map_profile_to_profile_response(result.0, result.1)),
+                        |result| {
+                            Ok(Self::_map_profile_to_profile_response(
+                                result.0.to_string(),
+                                result.1,
+                            ))
+                        },
                     )
             }
         }
@@ -501,12 +627,13 @@ impl Store {
 
     // Method to get the relations of a profile by type
     pub fn get_relations(caller: Principal, relation_type: RelationType) -> Vec<Principal> {
+        // Create a vector to hold the relations
+        let mut relations = vec![];
+
         // get the profile from the data store
         let profile = Self::_get_profile_from_caller(caller);
         // If the profile exists, continue
         if let Some((_principal, _profile)) = profile {
-            // Create a vector to hold the relations
-            let mut relations = vec![];
             // Iterate through the relations in the profile
             _profile
                 .relations
@@ -522,45 +649,6 @@ impl Store {
         return vec![];
     }
 
-    // Method to remove a relation from a profile
-    pub fn remove_relation(
-        caller: Principal,
-        relation_identifier: Principal,
-    ) -> Result<ProfileResponse, ApiError> {
-        let inputs = Some(vec![
-            format!("principal - {:?}", &caller),
-            format!("relation_identifier - {:?}", &relation_identifier),
-        ]);
-
-        // get the profile from the data store
-        match Self::_get_profile_from_caller(caller) {
-            // If the profile does not exist, return an error
-            None => Err(Self::_profile_not_found_error("remove_relation", inputs)),
-            // If the profile exists, continue
-            Some((_identifier, mut _profile)) => {
-                // Check if the relation exists
-                if let None = _profile.relations.get(&relation_identifier) {
-                    return Err(api_error(
-                        ApiErrorType::NotFound,
-                        "RELATION_NOT_FOUND",
-                        "Relation identifier not found",
-                        DATA.with(|data| Data::get_name(data)).as_str(),
-                        "remove_relation",
-                        inputs,
-                    ));
-                }
-                // Remove the relation from the profile
-                _profile.relations.remove(&relation_identifier);
-                // Update the profile in the data store
-                DATA.with(|data| Data::update_entry(data, _identifier, _profile))
-                    .map_or_else(
-                        |err| Err(err),
-                        |result| Ok(Self::_map_profile_to_profile_response(result.0, result.1)),
-                    )
-            }
-        }
-    }
-
     // Method to get the profile of the caller
     pub fn get_profile_by_user_principal(
         principal: Principal,
@@ -573,29 +661,33 @@ impl Store {
                 None,
             )),
             // If the profile exists, continue
-            Some((_identifier, profile)) => {
-                Ok(Self::_map_profile_to_profile_response(_identifier, profile))
-            }
+            Some((_identifier, profile)) => Ok(Self::_map_profile_to_profile_response(
+                _identifier.to_string(),
+                profile,
+            )),
         }
     }
 
     // Method to get the profile by an identifier
     pub fn get_profile_by_identifier(identifier: Principal) -> Result<ProfileResponse, ApiError> {
         // get the profile from the data store
-        match DATA.with(|data| Data::get_entry(data, identifier)) {
+        match STABLE_DATA
+            .with(|data| ENTRIES.with(|entries| Data::get_entry(data, entries, identifier)))
+        {
             // If the profile does not exist, return an error
             Err(err) => Err(err),
             // If the profile exists, continue
-            Ok((_identifier, profile)) => {
-                Ok(Self::_map_profile_to_profile_response(_identifier, profile))
-            }
+            Ok((_identifier, profile)) => Ok(Self::_map_profile_to_profile_response(
+                _identifier.to_string(),
+                profile,
+            )),
         }
     }
 
     // Method to get profiles by a list of principals
     pub fn get_profiles_by_user_principal(principals: Vec<Principal>) -> Vec<ProfileResponse> {
         // get the profiles from the data store
-        let fetched_profiles = DATA.with(|data| Data::get_entries(data));
+        let fetched_profiles = ENTRIES.with(|entries| Data::get_entries(entries));
 
         // filter the profiles by the principals passed in
         principals
@@ -620,10 +712,14 @@ impl Store {
         // filter the profiles by the principals passed in
         for identifier in profile_identifiers {
             // get the profile from the data store
-            if let Ok((_identifier, profile)) = DATA.with(|data| Data::get_entry(data, identifier))
+            if let Ok((_identifier, profile)) = STABLE_DATA
+                .with(|data| ENTRIES.with(|entries| Data::get_entry(data, entries, identifier)))
             {
                 // add the profile to the vector
-                profiles.push(Self::_map_profile_to_profile_response(_identifier, profile));
+                profiles.push(Self::_map_profile_to_profile_response(
+                    _identifier.to_string(),
+                    profile,
+                ));
             }
         }
 
@@ -638,12 +734,57 @@ impl Store {
                 None,
             )),
             Some((_identifier, mut _existing)) => {
-                _existing.code_of_conduct = CodeOfConductDetails {
+                _existing.code_of_conduct = DocumentDetails {
                     approved_version: version,
                     approved_date: time(),
                 };
 
-                let _ = DATA.with(|data| Data::update_entry(data, _identifier, _existing));
+                let _ = STABLE_DATA.with(|data| {
+                    ENTRIES
+                        .with(|entries| Data::update_entry(data, entries, _identifier, _existing))
+                });
+                Ok(true)
+            }
+        }
+    }
+
+    pub fn approve_privacy_policy(caller: Principal, version: u64) -> Result<bool, ApiError> {
+        match Self::_get_profile_from_caller(caller) {
+            None => Err(Self::_profile_not_found_error(
+                "approve_privacy_policy",
+                None,
+            )),
+            Some((_identifier, mut _existing)) => {
+                _existing.privacy_policy = Some(DocumentDetails {
+                    approved_version: version,
+                    approved_date: time(),
+                });
+
+                let _ = STABLE_DATA.with(|data| {
+                    ENTRIES
+                        .with(|entries| Data::update_entry(data, entries, _identifier, _existing))
+                });
+                Ok(true)
+            }
+        }
+    }
+
+    pub fn approve_terms_of_service(caller: Principal, version: u64) -> Result<bool, ApiError> {
+        match Self::_get_profile_from_caller(caller) {
+            None => Err(Self::_profile_not_found_error(
+                "approve_terms_of_service",
+                None,
+            )),
+            Some((_identifier, mut _existing)) => {
+                _existing.terms_of_service = Some(DocumentDetails {
+                    approved_version: version,
+                    approved_date: time(),
+                });
+
+                let _ = STABLE_DATA.with(|data| {
+                    ENTRIES
+                        .with(|entries| Data::update_entry(data, entries, _identifier, _existing))
+                });
                 Ok(true)
             }
         }
@@ -659,13 +800,15 @@ impl Store {
         // create a vector to hold the profiles
         let mut profiles: Vec<ProfileResponse> = vec![];
 
-        DATA.with(|data| {
+        STABLE_DATA.with(|data| {
             // filter the profiles by the identifiers passed in
             identifiers.into_iter().for_each(|identifier| {
-                if let Ok((_identifier, _profile)) = Data::get_entry(&data, identifier) {
+                if let Ok((_identifier, _profile)) =
+                    ENTRIES.with(|entries| Data::get_entry(&data, entries, identifier))
+                {
                     // add the profile to the vector
                     profiles.push(Self::_map_profile_to_profile_response(
-                        _identifier,
+                        _identifier.to_string(),
                         _profile,
                     ))
                 };
@@ -688,9 +831,9 @@ impl Store {
     ) -> PagedResponse<ProfileResponse> {
         // create a vector to hold the profiles
         let mut profiles: Vec<ProfileResponse> = vec![];
-        DATA.with(|data| {
+        ENTRIES.with(|entries| {
             // get profiles from the data store
-            let all_profiles = Data::get_entries(data);
+            let all_profiles = Data::get_entries(entries);
             // filter the profiles by the principals passed in
             principals.into_iter().for_each(|p| {
                 if let Some((_identifier, _profile)) =
@@ -712,7 +855,7 @@ impl Store {
         })
     }
 
-    fn _has_user_name(profiles: &Vec<(Principal, Profile)>, username: &String) -> bool {
+    fn _has_user_name(profiles: &Vec<(String, Profile)>, username: &String) -> bool {
         let profile = profiles
             .iter()
             .find(|(_, profile)| &profile.username == username);
@@ -723,7 +866,7 @@ impl Store {
     }
 
     // Method to check if a profile exists by email
-    fn _has_email(profiles: &Vec<(Principal, Profile)>, email: &String) -> bool {
+    fn _has_email(profiles: &Vec<(String, Profile)>, email: &String) -> bool {
         let profile = profiles.iter().find(|(_, profile)| &profile.email == email);
         match profile {
             None => false,
@@ -894,12 +1037,9 @@ impl Store {
     }
 
     // Method to map a profile to a profile response
-    fn _map_profile_to_profile_response(
-        identifier: Principal,
-        profile: Profile,
-    ) -> ProfileResponse {
+    fn _map_profile_to_profile_response(identifier: String, profile: Profile) -> ProfileResponse {
         ProfileResponse {
-            identifier,
+            identifier: Principal::from_text(identifier).unwrap_or(Principal::anonymous()),
             principal: profile.principal,
             username: profile.username,
             display_name: profile.display_name,
@@ -933,15 +1073,25 @@ impl Store {
             updated_on: profile.updated_on,
             created_on: profile.created_on,
             member_identifier: profile.member_identifier,
+            privacy_policy: profile.privacy_policy,
+            terms_of_service: profile.terms_of_service,
         }
     }
 
     //  Method to get a profile from a caller
     fn _get_profile_from_caller(caller: Principal) -> Option<(Principal, Profile)> {
-        let profiles = DATA.with(|data| Data::get_entries(data));
-        profiles
+        let profiles = ENTRIES.with(|entries| Data::get_entries(entries));
+        if let Some(reponse) = profiles
             .into_iter()
             .find(|(_identifier, _profile)| _profile.principal == caller)
+        {
+            return Some((
+                Principal::from_text(reponse.0).unwrap_or(Principal::anonymous()),
+                reponse.1,
+            ));
+        } else {
+            return None;
+        }
     }
 
     // default profile_not_found error
@@ -950,7 +1100,9 @@ impl Store {
             ApiErrorType::NotFound,
             "PROFILE_NOT_FOUND",
             "Profile not found",
-            DATA.with(|data| Data::get_name(data)).as_str(),
+            STABLE_DATA
+                .with(|data| Data::get_name(data.borrow().get()))
+                .as_str(),
             method_name,
             inputs,
         )
@@ -964,7 +1116,7 @@ impl Store {
         chunk: usize,
         max_bytes_per_chunk: usize,
     ) -> (Vec<u8>, (usize, usize)) {
-        let profiles = DATA.with(|data| Data::get_entries(data));
+        let profiles = ENTRIES.with(|data| Data::get_entries(data));
         // get profiles for filtering
         let mapped_profiles: Vec<ProfileResponse> = profiles
             .iter()
@@ -1004,5 +1156,393 @@ impl Store {
             // if the profiles cant be serialized return an empty vec and start and end chunk index as 0
             return (vec![], (0, 0));
         }
+    }
+
+    pub fn add_friend_request(
+        requested_by: Principal,
+        to: Principal,
+        message: String,
+    ) -> Result<FriendRequestResponse, ApiError> {
+        FRIEND_REQUEST.with(|r| {
+            let mut requests = r.borrow_mut();
+
+            // If the requester puts out a second friend request for the user
+            if requests
+                .iter()
+                .any(|(_, r)| r.requested_by == requested_by && r.to == to)
+            {
+                return Err(api_error(
+                    ApiErrorType::BadRequest,
+                    "ALREADY_REQUESTED",
+                    "You already sent a friend request to this user",
+                    STABLE_DATA
+                        .with(|data| Data::get_name(data.borrow().get()))
+                        .as_str(),
+                    "friend_request",
+                    None,
+                ));
+            }
+
+            // if the "to" has already sent a request to the "requested_by"
+            if requests
+                .iter()
+                .any(|(_, r)| r.requested_by == to && r.to == requested_by)
+            {
+                return Err(api_error(
+                    ApiErrorType::BadRequest,
+                    "PENDING_REQUEST",
+                    "The invited user already send you a friend request",
+                    STABLE_DATA
+                        .with(|data| Data::get_name(data.borrow().get()))
+                        .as_str(),
+                    "friend_request",
+                    None,
+                ));
+            }
+
+            let id = requests.last_key_value().map(|(k, _)| k + 1).unwrap_or(0);
+
+            let request = FriendRequest {
+                requested_by,
+                message: message.clone(),
+                to,
+                created_at: time(),
+            };
+
+            requests.insert(id.clone(), request.clone());
+
+            let display_name = Self::get_profile_by_user_principal(requested_by)
+                .map_or("unknown".to_string(), |p| p.display_name);
+
+            let metadata = json!({
+                "receivedBy": display_name,
+                "receivedByPrincipal": requested_by.to_string(),
+                "message": message,
+                "isProcessed": false,
+            });
+
+            Self::send_notification().friend_request_notification(
+                requested_by.clone(),
+                FriendRequestNotificationData {
+                    friend_request_id: id.clone(),
+                    from: requested_by.clone(),
+                    to,
+                    accepted: None,
+                },
+                vec![to.clone()],
+                metadata.to_string(),
+            );
+
+            Ok(FriendRequestResponse {
+                id,
+                requested_by,
+                message: request.message.clone(),
+                to,
+                created_at: request.created_at,
+            })
+        })
+    }
+
+    pub fn get_friend_requests(caller: Principal) -> Vec<FriendRequestResponse> {
+        FRIEND_REQUEST.with(|r| {
+            let requests = r.borrow();
+
+            requests
+                .iter()
+                .filter(|(_, r)| r.requested_by == caller || r.to == caller)
+                .map(|(k, v)| FriendRequestResponse {
+                    id: k.clone(),
+                    requested_by: v.requested_by,
+                    message: v.message.clone(),
+                    to: v.to,
+                    created_at: v.created_at,
+                })
+                .collect()
+        })
+    }
+
+    pub fn accept_friend_request(caller: Principal, id: u64) -> Result<bool, String> {
+        FRIEND_REQUEST.with(|r| {
+            let mut requests = r.borrow_mut();
+
+            if let Some(request) = requests.get(&id) {
+                if request.to != caller {
+                    return Err("Request not found".to_string());
+                }
+                let profiles = ENTRIES.with(|data| Data::get_entries(data));
+
+                let mut caller_profile = profiles
+                    .iter()
+                    .find(|(_, p)| p.principal == request.to)
+                    .unwrap()
+                    .clone();
+
+                caller_profile
+                    .1
+                    .relations
+                    .insert(request.requested_by, RelationType::Friend.to_string());
+
+                let mut to_profile = profiles
+                    .iter()
+                    .find(|(_, p)| p.principal == request.requested_by)
+                    .unwrap()
+                    .clone();
+
+                to_profile
+                    .1
+                    .relations
+                    .insert(request.to, RelationType::Friend.to_string());
+
+                ENTRIES.with(|entries| {
+                    let _ = STABLE_DATA.with(|data| {
+                        let _ = Data::update_entry(
+                            data,
+                            entries,
+                            Principal::from_text(caller_profile.0).unwrap(),
+                            caller_profile.1,
+                        );
+                        let _ = Data::update_entry(
+                            data,
+                            entries,
+                            Principal::from_text(to_profile.0.clone()).unwrap(),
+                            to_profile.1.clone(),
+                        );
+                    });
+                });
+                requests.remove(&id);
+
+                let display_name = Self::get_profile_by_user_principal(caller)
+                    .map_or("unknown".to_string(), |p| p.display_name);
+
+                let metadata = json!({
+                    "acceptedBy": display_name,
+                    "acceptedByPrincipal": caller.to_string(),
+                });
+
+                Self::send_notification().friend_request_notification(
+                    request.requested_by.clone(),
+                    FriendRequestNotificationData {
+                        friend_request_id: id.clone(),
+                        from: request.requested_by.clone(),
+                        to: request.to.clone(),
+                        accepted: Some(true),
+                    },
+                    vec![request.requested_by],
+                    metadata.to_string(),
+                );
+                return Ok(true);
+            }
+
+            Err("Request not found".to_string())
+        })
+    }
+
+    pub fn remove_friend(caller: Principal, to_remove: Principal) -> Result<bool, String> {
+        let profiles = ENTRIES.with(|data| Data::get_entries(data));
+
+        let mut caller_profile = profiles
+            .iter()
+            .find(|(_, p)| p.principal == caller)
+            .unwrap()
+            .clone();
+
+        caller_profile.1.relations.remove(&to_remove);
+
+        let mut to_remove_profile = profiles
+            .iter()
+            .find(|(_, p)| p.principal == to_remove)
+            .unwrap()
+            .clone();
+
+        to_remove_profile.1.relations.remove(&caller);
+
+        ENTRIES.with(|entries| {
+            STABLE_DATA.with(|data| {
+                let _ = Data::update_entry(
+                    data,
+                    entries,
+                    Principal::from_text(caller_profile.0).unwrap(),
+                    caller_profile.1,
+                );
+                let _ = Data::update_entry(
+                    data,
+                    entries,
+                    Principal::from_text(to_remove_profile.0).unwrap(),
+                    to_remove_profile.1,
+                );
+            });
+        });
+
+        Self::send_notification().friend_remove_notification(to_remove, "{}".to_string());
+
+        Ok(true)
+    }
+
+    pub fn clear_relations(caller: Principal) -> bool {
+        let profiles = ENTRIES.with(|data| Data::get_entries(data));
+
+        let mut caller_profile = profiles
+            .iter()
+            .find(|(_, p)| p.principal == caller)
+            .unwrap()
+            .clone();
+
+        caller_profile.1.relations.clear();
+
+        ENTRIES.with(|entries| {
+            STABLE_DATA.with(|data| {
+                let _ = Data::update_entry(
+                    data,
+                    entries,
+                    Principal::from_text(caller_profile.0).unwrap(),
+                    caller_profile.1,
+                );
+            });
+        });
+
+        true
+    }
+
+    pub fn decline_friend_request(caller: Principal, id: u64) -> Result<bool, String> {
+        FRIEND_REQUEST.with(|r| {
+            let mut requests = r.borrow_mut();
+
+            if let Some(request) = requests.get(&id) {
+                if request.to == caller {
+                    let display_name = Self::get_profile_by_user_principal(caller)
+                        .map_or("unknown".to_string(), |p| p.display_name);
+
+                    let metadata = json!({
+                        "declinedBy": display_name,
+                        "declinedByPrincipal": caller.to_string(),
+                    });
+
+                    Self::send_notification().friend_request_notification(
+                        request.requested_by.clone(),
+                        FriendRequestNotificationData {
+                            friend_request_id: id.clone(),
+                            from: request.requested_by.clone(),
+                            to: request.to.clone(),
+                            accepted: Some(false),
+                        },
+                        vec![request.requested_by],
+                        metadata.to_string(),
+                    );
+
+                    requests.remove(&id);
+                    return Ok(true);
+                }
+            }
+
+            Err("Request not found".to_string())
+        })
+    }
+
+    pub fn remove_friend_request(caller: Principal, id: u64) -> Result<bool, String> {
+        FRIEND_REQUEST.with(|r| {
+            let mut requests = r.borrow_mut();
+
+            if let Some(request) = requests.get(&id) {
+                if request.requested_by == caller {
+                    requests.remove(&id);
+                    return Ok(true);
+                }
+            }
+
+            Err("Request not found".to_string())
+        })
+    }
+
+    pub fn block_user(caller: Principal, to_block: Principal) -> Result<ProfileResponse, ApiError> {
+        let inputs = Some(vec![
+            format!("principal - {:?}", &caller.to_string()),
+            format!("relation_identifier - {:?}", &to_block.to_string()),
+        ]);
+
+        // get the profile from the data store
+        match Self::_get_profile_from_caller(caller) {
+            // If the profile does not exist, return an error
+            None => Err(Self::_profile_not_found_error("block_user", inputs)),
+            // If the profile exists, continue
+            Some((_identifier, mut _profile)) => {
+                // Add the relation to the profile, if existing it will be overwritten
+                _profile
+                    .relations
+                    .insert(to_block, RelationType::Blocked.to_string());
+
+                // Update the profile in the data store
+                ENTRIES
+                    .with(|entries| {
+                        STABLE_DATA
+                            .with(|data| Data::update_entry(data, entries, _identifier, _profile))
+                    })
+                    .map_or_else(
+                        |err| Err(err),
+                        |result| {
+                            Ok(Self::_map_profile_to_profile_response(
+                                result.0.to_string(),
+                                result.1,
+                            ))
+                        },
+                    )
+            }
+        }
+    }
+
+    pub fn unblock_user(
+        caller: Principal,
+        to_unblock: Principal,
+    ) -> Result<ProfileResponse, ApiError> {
+        let inputs = Some(vec![
+            format!("principal - {:?}", &caller.to_string()),
+            format!("relation_identifier - {:?}", &to_unblock.to_string()),
+        ]);
+
+        // get the profile from the data store
+        match Self::_get_profile_from_caller(caller) {
+            // If the profile does not exist, return an error
+            None => Err(Self::_profile_not_found_error("block_user", inputs)),
+            // If the profile exists, continue
+            Some((_identifier, mut _profile)) => {
+                // Add the relation to the profile, if existing it will be overwritten
+                _profile.relations.remove(&to_unblock);
+
+                // Update the profile in the data store
+                ENTRIES
+                    .with(|entries| {
+                        STABLE_DATA
+                            .with(|data| Data::update_entry(data, entries, _identifier, _profile))
+                    })
+                    .map_or_else(
+                        |err| Err(err),
+                        |result| {
+                            Ok(Self::_map_profile_to_profile_response(
+                                result.0.to_string(),
+                                result.1,
+                            ))
+                        },
+                    )
+            }
+        }
+    }
+
+    fn get_environment() -> Option<Environment> {
+        let canister_id = id().to_string();
+        if canister_id == "4vy4w-gaaaa-aaaap-aa4pa-cai".to_string() {
+            return Some(Environment::Production);
+        }
+        if canister_id == "5ycyv-iiaaa-aaaap-abgia-cai" {
+            return Some(Environment::Staging);
+        }
+        if canister_id == "crorp-uaaaa-aaaap-abqwq-cai" {
+            return Some(Environment::Development);
+        } else {
+            return None;
+        }
+    }
+
+    fn send_notification() -> Notification {
+        let environment = Self::get_environment().expect("Environment not found");
+        Notification::new(environment)
     }
 }
